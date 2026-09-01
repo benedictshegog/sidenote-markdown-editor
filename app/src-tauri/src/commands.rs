@@ -659,14 +659,22 @@ pub fn suggest_relink(state: S, id: String) -> Result<Option<String>, String> {
     };
     let want = std::fs::read_to_string(&latest.path).map_err(err)?;
     let old = PathBuf::from(&doc.path);
-    let mut dir = old.parent().map(|p| p.to_path_buf());
+    let home = std::env::var_os("HOME").map(PathBuf::from);
     // Walk up to three levels and scan two levels down; cheap and local.
     // `seen` matters as much as the depth limit: each level up covers the
     // subtree the level below just walked, so without it the ancestor scans
     // re-read every file two and three times over.
     let mut seen: HashSet<PathBuf> = HashSet::new();
+    let mut dir = old.parent().map(|p| p.to_path_buf());
     for _ in 0..3 {
         let Some(d) = dir.clone() else { break };
+        // Never scan the home directory or an ancestor of it. A scan of `~`
+        // descends into Music, Pictures and iCloud Drive, and macOS raises a
+        // TCC consent prompt for each one — a missing Desktop file must not
+        // cost the user three permission dialogs.
+        if home.as_deref().is_some_and(|h| h.starts_with(&d)) {
+            break;
+        }
         if let Some(hit) = scan_for(&d, &want, 2, &mut seen) {
             return Ok(Some(hit.to_string_lossy().into_owned()));
         }
