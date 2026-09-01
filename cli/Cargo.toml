@@ -1,0 +1,18 @@
+[package]
+name = "sidenote-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command line for Sidenote, used by the Claude Code skill"
+
+[[bin]]
+name = "sidenote"
+path = "src/main.rs"
+
+[dependencies]
+sidenote-core = { path = "../core" }
+clap = { version = "4", features = ["derive"] }
+serde_json.workspace = true
+libc.workspace = true
+# Blocking client for the one request `apply` makes to the running app.
+tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }

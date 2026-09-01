@@ -1,0 +1,23 @@
+[package]
+name = "sidenote-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Data model, storage and re-anchoring for Sidenote"
+
+[lib]
+name = "sidenote_core"
+path = "src/lib.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+libc.workspace = true
+similar.workspace = true
+pulldown-cmark.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

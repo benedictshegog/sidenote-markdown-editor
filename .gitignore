@@ -1,0 +1,9 @@
+.claude/
+target/
+node_modules/
+dist/
+app/src-tauri/gen/
+app/src-tauri/binaries/
+.worktrees/
+.DS_Store
+*.log

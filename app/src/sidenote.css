@@ -1,0 +1,2365 @@
+/* Sidenote: one accent (indigo), hairlines, typography first. Light and dark from day one. */
+
+:root {
+  --accent: #5e5ce6;
+  --accent-tint: rgba(94, 92, 230, 0.16);
+  --accent-tint-strong: rgba(94, 92, 230, 0.3);
+  --accent-underline: rgba(94, 92, 230, 0.55);
+  --accent-flash: rgba(94, 92, 230, 0.5);
+  --bg: #ffffff;
+  --bg-elev: #fbfbfa;
+  --card: #ffffff;
+  --fg: #08090a;
+  --fg-2: #62666d;
+  --fg-3: #8a8f98;
+  --hairline: rgba(0, 0, 0, 0.08);
+  --hairline-strong: rgba(0, 0, 0, 0.14);
+  --surface: rgba(0, 0, 0, 0.04);
+  --surface-2: rgba(0, 0, 0, 0.07);
+  --selection: rgba(94, 92, 230, 0.2);
+  --ok: #2f9e5f;
+  /* Suggestions get one hue of their own, not the indigo accent: a proposed
+     edit and a comment are different things and must not read as the same
+     one. Insertions and deletions then share that hue and are told apart by
+     underline against strikethrough, the way a word processor does it — a
+     red/green pair would read as error and success rather than as before and
+     after. */
+  --sug: #0f7b6c;
+  --sug-tint: rgba(15, 123, 108, 0.13);
+  --sug-band: rgba(15, 123, 108, 0.07);
+  --sug-line: rgba(15, 123, 108, 0.5);
+  --sug-hover: rgba(15, 123, 108, 0.2);
+  --sug-del: #a33a3a;
+  --sug-del-tint: rgba(163, 58, 58, 0.13);
+  --sug-del-line: rgba(163, 58, 58, 0.7);
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --font-body: var(--font-ui);
+  --font-code: 'SF Mono', ui-monospace, Menlo, Monaco, monospace;
+  --panel-w: 320px;
+  --margin-w: 300px;
+  --doc-w: calc(680px + 2 * 48px);
+  --sidebar-w: 240px;
+  /* The traffic lights are inset to x 18, y 17..31 at window creation, so a
+     48px bar centres on them. Matches the Claude app's titlebar. */
+  --title-h: 48px;
+  --pill-h: 22px;
+  --body-weight: 400;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  color-scheme: light dark;
+  --code-fg: #1d1d1f;
+  --code-comment: #616a74;
+  --code-keyword: #a626a4;
+  --code-string: #1a7f37;
+  --code-number: #b35000;
+  --code-function: #0550ae;
+  --code-type: #7a4d05;
+  --code-property: #0b6a70;
+  --code-punctuation: #57606a;
+  --code-invalid: #c0392b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --accent: #7d7aff;
+    --accent-tint: rgba(125, 122, 255, 0.2);
+    --accent-tint-strong: rgba(125, 122, 255, 0.36);
+    --accent-underline: rgba(125, 122, 255, 0.65);
+    --accent-flash: rgba(125, 122, 255, 0.5);
+    --bg: #1e1e1f;
+    --bg-elev: #232325;
+    --card: #28282b;
+    --fg: #fcfcfd;
+    --body-weight: 420;
+    --fg-2: #8a8f98;
+    --fg-3: #6e7178;
+    --hairline: rgba(255, 255, 255, 0.12);
+    --hairline-strong: rgba(255, 255, 255, 0.2);
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-2: rgba(255, 255, 255, 0.1);
+    --selection: rgba(125, 122, 255, 0.28);
+  --ok: #4ec27e;
+    --sug: #4ec9b0;
+    --sug-tint: rgba(78, 201, 176, 0.18);
+    --sug-band: rgba(78, 201, 176, 0.09);
+    --sug-line: rgba(78, 201, 176, 0.55);
+    --sug-hover: rgba(78, 201, 176, 0.26);
+    --sug-del: #e88b8b;
+    --sug-del-tint: rgba(232, 139, 139, 0.16);
+    --sug-del-line: rgba(232, 139, 139, 0.75);
+    --code-fg: #e6e6ea;
+    --code-comment: #9b9ba5;
+    --code-keyword: #c792ea;
+    --code-string: #9ece6a;
+    --code-number: #ffab70;
+    --code-function: #82aaff;
+    --code-type: #ffcb6b;
+    --code-property: #89ddff;
+    --code-punctuation: #a8a8ad;
+    --code-invalid: #ff6b6b;
+  }
+}
+:root[data-theme='dark'] {
+  --accent: #7d7aff;
+  --accent-tint: rgba(125, 122, 255, 0.2);
+  --accent-tint-strong: rgba(125, 122, 255, 0.36);
+  --accent-underline: rgba(125, 122, 255, 0.65);
+  --accent-flash: rgba(125, 122, 255, 0.5);
+  --bg: #1e1e1f;
+  --bg-elev: #232325;
+  --card: #28282b;
+  --fg: #fcfcfd;
+  --body-weight: 420;
+  --fg-2: #8a8f98;
+  --fg-3: #6e7178;
+  --hairline: rgba(255, 255, 255, 0.12);
+  --hairline-strong: rgba(255, 255, 255, 0.2);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.1);
+  --selection: rgba(125, 122, 255, 0.28);
+  --ok: #4ec27e;
+  --sug: #4ec9b0;
+  --sug-tint: rgba(78, 201, 176, 0.18);
+  --sug-band: rgba(78, 201, 176, 0.09);
+  --sug-line: rgba(78, 201, 176, 0.55);
+  --sug-hover: rgba(78, 201, 176, 0.26);
+  --sug-del: #e88b8b;
+  --sug-del-tint: rgba(232, 139, 139, 0.16);
+  --sug-del-line: rgba(232, 139, 139, 0.75);
+  --code-fg: #e6e6ea;
+  --code-comment: #9b9ba5;
+  --code-keyword: #c792ea;
+  --code-string: #9ece6a;
+  --code-number: #ffab70;
+  --code-function: #82aaff;
+  --code-type: #ffcb6b;
+  --code-property: #89ddff;
+  --code-punctuation: #a8a8ad;
+  --code-invalid: #ff6b6b;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: -0.006em;
+  color: var(--fg);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: default;
+}
+
+/* ---- layout ------------------------------------------------------------ */
+
+.app {
+  display: grid;
+  grid-template-columns: 0 1fr;
+  height: 100%;
+  transition: grid-template-columns 180ms var(--ease);
+}
+.app.sidebar-open {
+  grid-template-columns: var(--sidebar-w) 1fr;
+}
+
+/* One column per window: the tab bar on top, one docview per tab below. */
+.workspace {
+  grid-column: 2;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+.docview {
+  position: absolute;
+  top: var(--title-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 0;
+  grid-template-rows: minmax(0, 1fr);
+  transition: grid-template-columns 180ms var(--ease);
+}
+.docview.panel-open {
+  grid-template-columns: 1fr var(--panel-w);
+}
+.docview[hidden] {
+  display: none;
+}
+
+.main {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  background: var(--bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+/* The document and its comment margin scroll as one piece. The text sits in
+   the middle column and stays centred; comments take the right-hand gutter
+   next to it. When the window is too narrow for both, the gutter keeps its
+   minimum and the text moves left only by what that costs. */
+.canvas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--doc-w)) minmax(0, 1fr);
+  align-items: start;
+  min-height: 100%;
+  transition: grid-template-columns 180ms var(--ease);
+}
+.docview.margin-open .canvas {
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--doc-w)) minmax(var(--margin-w), 1fr);
+}
+.workspace > .main {
+  position: absolute;
+  top: var(--title-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* ---- sidebar ----------------------------------------------------------- */
+
+.sidebar-cell {
+  grid-column: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+.sidebar {
+  width: var(--sidebar-w);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--hairline);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-16px);
+  transition: opacity 120ms var(--ease), transform 180ms var(--ease);
+  pointer-events: none;
+}
+.app.sidebar-open .sidebar {
+  opacity: 1;
+  transform: none;
+  transition: opacity 180ms var(--ease) 40ms, transform 180ms var(--ease);
+  pointer-events: auto;
+}
+.sidebar-head {
+  height: var(--title-h);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 12px 8px 78px;
+}
+.sidebar-title {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.side-recent {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px;
+  overflow-y: auto;
+}
+.side-item {
+  position: relative;
+  padding: 7px 28px 7px 10px;
+  border-radius: 6px;
+  margin-bottom: 1px;
+}
+.side-item:hover {
+  background: var(--surface);
+}
+.side-current {
+  background: var(--surface-2);
+}
+.side-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.side-path {
+  font-size: 11px;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.side-forget {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--fg-3);
+  display: none;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+.side-item:hover .side-forget {
+  display: block;
+}
+.side-forget:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+
+/* ---- tab bar ----------------------------------------------------------- */
+
+.tabbar {
+  height: var(--title-h);
+  flex: none;
+  display: flex;
+  /* Tabs are centred segments, not folders on a shelf. They stop short of the
+     bar's full height so the 48px titlebar does not read as a slab. */
+  align-items: center;
+  gap: 2px;
+  padding: 0 210px 0 10px;
+  border-bottom: 1px solid var(--hairline);
+  transition: padding-left 180ms var(--ease);
+}
+/* With the pane closed the traffic lights sit over the tab bar; with it open
+   the sidebar head holds them instead. */
+.tabbar-inset {
+  /* The traffic lights end at x=76; 20px of clear space before the tab. */
+  padding-left: 96px;
+}
+.tabbar-space {
+  flex: 1;
+  align-self: stretch;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  height: 30px;
+  max-width: 220px;
+  min-width: 0;
+  padding: 0 8px 0 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg-3);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tab:hover {
+  color: var(--fg-2);
+  background: var(--surface);
+}
+/* The only marker of the active tab is a lighter fill. The bar keeps its
+   bottom hairline, so the tab never merges into the document. */
+.tab-active {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+.tab-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-close {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+  color: var(--fg-3);
+  opacity: 0;
+}
+.tab:hover .tab-close,
+.tab-active .tab-close {
+  opacity: 1;
+}
+.tab-close:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.tab-add {
+  width: 24px;
+  height: 24px;
+  align-self: center;
+  margin: 0 0 0 6px;
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--fg-3);
+}
+.tab-add:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* ---- document ---------------------------------------------------------- */
+
+.doc {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  padding: 40px 48px 160px;
+  user-select: text;
+  -webkit-user-select: text;
+  animation: doc-in 240ms var(--ease) both;
+}
+@keyframes doc-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.doc-path {
+  height: 20px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+/* ---- file not found ---------------------------------------------------- */
+
+/* This stands in for the document, so it takes the document's own measure and
+   padding. Without a rule it inherited the browser defaults and sat against
+   the window edge, which read as a broken screen rather than a stated one. */
+.empty {
+  max-width: var(--doc-w);
+  margin: 0 auto;
+  padding: 40px 48px 160px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.empty h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.empty p {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+/* An absolute path holds no spaces to break at, so it has to be allowed to
+   wrap mid-word or it runs past the column. */
+.empty .muted,
+.empty code {
+  overflow-wrap: anywhere;
+}
+.empty code {
+  font-family: var(--font-code);
+  font-size: 12px;
+}
+.empty p:last-child {
+  margin-bottom: 0;
+}
+
+.source {
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg-2);
+  margin: 0;
+}
+
+/* Start screen: the Open button, then the Recent list under it. One spacing
+   step (8px) times a small set of multiples, so the rhythm is deliberate:
+   20px glyph->line, 16px line->button, 48px head->list. */
+.start {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  padding: 56px 24px 72px;
+  user-select: none;
+}
+.start-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  color: var(--fg-2);
+}
+.start-head .btn-quiet {
+  margin-top: -4px;
+  padding: 5px 12px;
+}
+.start-glyph {
+  display: flex;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+/* A slight rise, staggered down the screen. */
+@keyframes start-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.start-glyph,
+.start-head p,
+.start-head .btn-quiet,
+.start .recents {
+  animation: start-rise 380ms var(--ease) both;
+}
+.start-head p {
+  animation-delay: 60ms;
+}
+.start-head .btn-quiet {
+  animation-delay: 110ms;
+}
+.start .recents {
+  animation-delay: 170ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-glyph,
+  .start-head p,
+  .start-head .btn-quiet,
+  .start .recents {
+    animation: none;
+  }
+}
+
+.recents {
+  width: 100%;
+  max-width: 520px;
+}
+.recents-label {
+  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.recent-item {
+  position: relative;
+  border-top: 1px solid var(--hairline);
+}
+.recent-item:last-child {
+  border-bottom: 1px solid var(--hairline);
+}
+.recent-open {
+  /* Fixed tracks, not flex: a long path must never squeeze the title, and
+     every path should right-align on the same edge. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr);
+  align-items: baseline;
+  gap: 16px;
+  width: 100%;
+  padding: 9px 34px 9px 10px;
+  text-align: left;
+}
+.recent-item:hover .recent-open {
+  background: var(--surface);
+}
+.recent-title {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-path {
+  font-size: 12px;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+.recent-forget {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--fg-3);
+  opacity: 0;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+.recent-item:hover .recent-forget {
+  opacity: 1;
+}
+.recent-forget:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.muted {
+  color: var(--fg-3);
+}
+
+/* ---- pill, busy strip, toast ------------------------------------------ */
+
+.pill {
+  position: absolute;
+  /* The pill hangs above .docview, whose top is --title-h, so centring it in
+     the bar is -(--title-h + --pill-h)/2. Derived, because the previous fixed
+     -38px was tuned to a 52px bar and left the pill 7px high when it shrank. */
+  top: calc((var(--title-h) + var(--pill-h)) / -2);
+  right: 16px;
+  z-index: 6;
+  transition: right 180ms var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: var(--pill-h);
+  padding: 0 8px;
+  border-radius: 11px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  font-size: 11px;
+  color: var(--fg-2);
+}
+.docview.panel-open .pill {
+  right: calc(var(--panel-w) + 16px);
+}
+.session {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-3);
+  fill: var(--fg-3);
+}
+.session.is-on {
+  color: var(--fg-2);
+  fill: var(--fg-2);
+}
+.session svg {
+  display: block;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-3);
+}
+.dot-green {
+  background: #34c759;
+}
+.dot-grey {
+  background: var(--fg-3);
+  opacity: 0.6;
+}
+.pill-warn {
+  color: var(--accent);
+}
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 4px;
+  margin-right: -3px;
+  border-radius: 9px;
+  color: var(--fg-3);
+  fill: var(--fg-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.pill-btn:hover {
+  background: var(--surface-2);
+}
+.pill-btn.is-on {
+  color: var(--fg);
+  fill: var(--fg);
+}
+.pill-btn svg {
+  display: block;
+}
+.pill-count {
+  line-height: 1;
+}
+.pill-menu {
+  position: relative;
+  display: inline-flex;
+}
+/* First-run tip anchored to the session button. Same hang as .pop so the two
+   never appear in different places, with an arrow because unlike the menu it
+   is not the result of a click and has to say what it points at. */
+.coach {
+  position: absolute;
+  top: 30px;
+  right: -4px;
+  width: 268px;
+  padding: 11px 12px 10px;
+  border-radius: 9px;
+  /* Filled with the accent rather than tinted: this is the one piece of UI
+     that appears uninvited, so it has to read as a different kind of thing
+     from the menus and panels around it. */
+  background: var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  text-align: left;
+  animation: fade 160ms var(--ease);
+  z-index: 8;
+}
+.coach::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: 16px;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.coach-title {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #fff;
+  margin-bottom: 3px;
+}
+.coach p {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0 0 9px;
+}
+.coach .btn-quiet {
+  float: right;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.coach .btn-quiet:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.pop {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  min-width: 176px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline-strong);
+  display: flex;
+  flex-direction: column;
+  animation: fade 120ms var(--ease);
+  z-index: 7;
+}
+.pop-note {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-3);
+  padding: 4px 9px 6px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 4px;
+  /* A width, not a max: the note is the widest thing in this menu now, so it
+     is what stops the popover collapsing to the one short button below it. */
+  width: 220px;
+}
+.pop button {
+  text-align: left;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.pop button:hover {
+  background: var(--surface-2);
+}
+
+/* Pinned to the top right of the document area while it scrolls. The wrapper
+   is sticky with no height so the document below it does not move. */
+.find-wrap {
+  position: sticky;
+  top: 0;
+  height: 0;
+  z-index: 7;
+}
+.find-bar {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 6px 0 12px;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+}
+.find-bar input {
+  width: 160px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+}
+.find-count {
+  min-width: 64px;
+  text-align: right;
+  padding-right: 4px;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.find-none {
+  color: #c0392b;
+}
+.find-bar .btn-quiet {
+  min-width: 24px;
+  padding: 0 4px;
+}
+.find-bar .btn-quiet:disabled {
+  opacity: 0.4;
+}
+
+.busy-strip {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.busy-strip > span,
+.busy-strip > button {
+  pointer-events: auto;
+}
+.busy-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 26px;
+  padding: 0 6px 0 12px;
+  border-radius: 13px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  font-size: 12px;
+  color: var(--fg-2);
+  pointer-events: auto;
+  animation: fade 150ms var(--ease);
+}
+.busy-capsule .btn-link {
+  font-size: 12px;
+}
+.busy-stale {
+  color: var(--accent);
+}
+
+/* Sits where the toast sits, but stays until it is answered. Wider than a
+   toast because it carries two lines and two buttons. */
+.update-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: min(620px, calc(100vw - 40px));
+  padding: 10px 12px 10px 16px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  z-index: 21;
+  animation: toast-in 150ms var(--ease);
+}
+.update-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.update-title {
+  font-size: 12px;
+  font-weight: 590;
+  color: var(--fg);
+}
+.update-sub {
+  font-size: 11px;
+  color: var(--fg-2);
+}
+.update-actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 12px;
+  z-index: 20;
+  animation: toast-in 150ms var(--ease);
+}
+/* Opacity only. This is shared by the sheet backdrop, the
+   popover and the busy capsule; a transform here slid every one of them
+   sideways on entry. */
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+/* The toast is centred with translateX(-50%), so its entry has to carry that
+   offset or it jumps half its width on the first frame. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+}
+
+/* ---- buttons ----------------------------------------------------------- */
+
+.btn-quiet,
+.btn-accent,
+.btn-link {
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 3px 9px;
+  cursor: default;
+}
+.btn-quiet {
+  color: var(--fg-2);
+  border: 1px solid var(--hairline-strong);
+}
+.btn-quiet:hover {
+  background: var(--surface);
+}
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+.btn-accent:disabled {
+  opacity: 0.45;
+}
+.btn-link {
+  color: var(--accent);
+  padding: 0 4px;
+}
+.btn-link:hover {
+  text-decoration: underline;
+}
+.btn-pill {
+  border-radius: 12px;
+  padding: 4px 12px;
+}
+
+/* ---- side panel (versions) --------------------------------------------- */
+
+.panel-cell {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 0;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--bg-elev);
+}
+.panel {
+  width: var(--panel-w);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--hairline);
+  background: var(--bg-elev);
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 120ms var(--ease), transform 180ms var(--ease);
+  pointer-events: none;
+}
+.docview.panel-open .panel {
+  opacity: 1;
+  transform: none;
+  transition: opacity 180ms var(--ease) 40ms, transform 180ms var(--ease);
+  pointer-events: auto;
+}
+.panel-head {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px 40px;
+}
+.panel-resolved {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--fg-3);
+}
+.panel-resolved:hover {
+  color: var(--accent);
+}
+.panel-empty {
+  padding: 24px 8px;
+  color: var(--fg-3);
+  text-align: center;
+}
+
+/* ---- comment margin ---------------------------------------------------- */
+
+.margin {
+  grid-column: 3;
+  position: relative;
+  min-width: 0;
+  align-self: stretch;
+  min-height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease);
+}
+.docview.margin-open .margin {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 180ms var(--ease) 60ms;
+}
+.margin-track {
+  position: relative;
+  width: var(--margin-w);
+}
+/* Resolved count and toggle: pinned to the bottom corner while comments are
+   open, the same shape as the pill at the top, out of the way of the cards. */
+.resolved-chip {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  z-index: 6;
+  height: var(--pill-h);
+  padding: 0 10px;
+  border-radius: 11px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-2);
+  animation: fade 160ms var(--ease);
+}
+.resolved-chip:hover {
+  color: var(--accent);
+  border-color: var(--hairline-strong);
+}
+
+/* A card. Absolutely placed by the layout pass; `top` animates so cards glide
+   apart when one opens. Hidden until it has been measured once, otherwise it
+   would be seen sliding down from 0. */
+.ccard {
+  position: absolute;
+  left: 8px;
+  width: calc(var(--margin-w) - 28px);
+  padding: 10px 12px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  opacity: 0;
+  transition:
+    top 180ms var(--ease),
+    transform 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    border-color 150ms var(--ease),
+    opacity 120ms var(--ease);
+}
+.ccard.is-measured {
+  opacity: 1;
+}
+/* An unmeasured card is invisible and may still sit at its first-render top;
+   it must jump to its anchor, not slide there once it fades in. */
+.ccard:not(.is-measured) {
+  transition: none;
+}
+.ccard:hover {
+  border-color: var(--hairline-strong);
+}
+/* Expanding a card reveals its replies and the composer. They arrive rather
+   than blink into place: the card takes its new height at once, so the
+   layout and the `top` transition above stay honest, and the new content
+   rises into the space it just made. */
+@keyframes sidenote-card-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ccard.is-active .cmsg-reply,
+.ccard.is-active .ccard-reply,
+.ccard.is-active .ccard-foot {
+  animation: sidenote-card-open 180ms var(--ease) both;
+}
+/* The composer follows the replies it sits under. */
+.ccard.is-active .ccard-reply {
+  animation-delay: 60ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccard.is-active .cmsg-reply,
+  .ccard.is-active .ccard-reply,
+  .ccard.is-active .ccard-foot {
+    animation: none;
+  }
+}
+/* The open card steps toward the text it belongs to and lifts off the page. */
+.ccard.is-active {
+  transform: translateX(-14px);
+  border-color: var(--hairline-strong);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 6px 20px rgba(0, 0, 0, 0.12);
+  z-index: 2;
+}
+.ccard.is-draft {
+  border-color: var(--accent-underline);
+}
+.ccard.is-resolved {
+  background: transparent;
+  box-shadow: none;
+}
+.ccard.is-resolved .cmsg-body,
+.ccard.is-resolved .cmsg-name {
+  color: var(--fg-2);
+}
+
+.cmsg + .cmsg {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+.cmsg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+.cmsg-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.cmsg-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.cmsg-time {
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.cmsg-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  margin: -2px -4px 0 0;
+}
+.cmsg-body {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.cmsg-body.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+.cmsg-reply .cmsg-head {
+  min-height: 20px;
+}
+.cmsg-reply .cmsg-body {
+  margin-top: 4px;
+}
+
+.avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  fill: var(--fg-2);
+}
+.avatar.avatar-sm {
+  width: 20px;
+  height: 20px;
+}
+.avatar-claude {
+  background: var(--accent-tint);
+  fill: var(--accent);
+}
+
+/* Claude has replied since you last opened this thread. On the collapsed card
+   only: expanding one is what clears it, so a dot on an open card would be
+   telling you about something you are looking at. */
+.ccard-unread {
+  width: 7px;
+  height: 7px;
+  margin: 4px 2px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+}
+
+/* A reply on its way, drawn as the message it is about to become: the same
+   row a real reply gets, with the chat convention for "writing…" where the
+   body will be. It shows in a collapsed card too — the one thing a collapsed
+   card must never hide is that something is coming. */
+.cmsg-typing .cmsg-body {
+  padding-top: 3px;
+}
+.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+}
+.typing i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.3;
+  animation: sidenote-typing 1300ms var(--ease) infinite;
+}
+.typing i:nth-child(2) {
+  animation-delay: 170ms;
+}
+.typing i:nth-child(3) {
+  animation-delay: 340ms;
+}
+
+@keyframes sidenote-typing {
+  0%,
+  55%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing i {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+.ccard-resolve {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 50%;
+  fill: var(--fg-3);
+  opacity: 0;
+  transition: opacity 120ms var(--ease), background 120ms var(--ease);
+}
+.ccard:hover .ccard-resolve,
+.ccard.is-active .ccard-resolve {
+  opacity: 1;
+}
+.ccard-resolve:hover {
+  background: var(--surface);
+  fill: var(--accent);
+}
+.ccard-more {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.ccard-quote {
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--hairline-strong);
+  font-size: 12px;
+  color: var(--fg-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+.ccard-orphan {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.ccard-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ccard-reply .composer {
+  flex: 1;
+  min-width: 0;
+}
+.ccard-foot {
+  margin-top: 10px;
+}
+
+/* The reply field is a pill until it is focused, then a box with buttons. */
+.composer textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 4px 10px;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+  transition: border-radius 120ms var(--ease), background 120ms var(--ease);
+}
+.composer textarea::placeholder {
+  color: var(--fg-3);
+}
+.composer.is-active textarea,
+.composer textarea:focus {
+  border-color: var(--hairline-strong);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.composer-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.is-draft .composer {
+  margin-top: 8px;
+}
+
+/* ---- comment marks ----------------------------------------------------- */
+
+.sidenote-comment {
+  background: var(--accent-tint);
+  border-bottom: 2px solid var(--accent-underline);
+  border-radius: 2px;
+  transition: background 150ms var(--ease);
+}
+.sidenote-comment-selected,
+.sidenote-comment-draft {
+  background: var(--accent-tint-strong);
+}
+
+/* ---- presence: where Claude is working --------------------------------- */
+
+/* Presence rides the comment highlights rather than adding furniture of its
+   own. Both of these are inline decorations, which ProseMirror renders
+   *outside* the comment mark, so the tints stack: a held comment is simply
+   its own highlight, twice over. That also means the flash works on prose
+   carrying no comment, which is what an edit made outside any thread needs.
+
+   Not a lock. `sidenote apply` refuses an edit written against text you have
+   since changed, so this is here to tell you what is happening, not to keep
+   you out. */
+
+/* A comment Claude is holding. The card carries the news — see `.typing` —
+   so the passage only has to say *which* one, quietly and without moving. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-working {
+  background: var(--accent-tint-strong);
+  border-radius: 2px;
+  transition: background 220ms var(--ease);
+}
+
+/* Where the last edit landed: one bright flash settling into the ordinary
+   highlight. This is the only motion in the text, and it is over in a
+   moment, so it reads as an event rather than a state. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-changed {
+  border-radius: 2px;
+  animation: sidenote-changed 2200ms var(--ease) 1;
+}
+
+@keyframes sidenote-changed {
+  0%,
+  45% {
+    background: var(--accent-flash);
+  }
+  100% {
+    background: var(--accent-tint);
+  }
+}
+
+/* Find matches. A neutral tint so they read apart from the accent-coloured
+   comment marks they may sit on top of; the current one takes the accent. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-find {
+  background: rgba(255, 200, 0, 0.35);
+  border-radius: 2px;
+}
+.sidenote-editor .milkdown .ProseMirror .sidenote-find-current {
+  background: rgba(255, 160, 0, 0.7);
+  outline: 1px solid rgba(180, 100, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenote-editor .milkdown .ProseMirror .sidenote-working {
+    transition: none;
+  }
+  .sidenote-editor .milkdown .ProseMirror .sidenote-changed {
+    animation: none;
+    background: var(--accent-flash);
+  }
+}
+
+/* ---- suggestions -------------------------------------------------------
+   A proposed edit, drawn in the prose it would change. One hue; underline for
+   what would arrive, a line through what would go. The sentence still reads
+   in order, which is the point: you judge the change in its place rather than
+   against a copy of it somewhere else. */
+
+/* The band under the whole passage: enough to say "this stretch is under
+   discussion", not enough to compete with the two marks inside it. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug {
+  background: var(--sug-band);
+  border-radius: 2px;
+  transition: background 160ms var(--ease);
+}
+
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug.is-selected {
+  background: var(--sug-tint);
+}
+
+/* What would go.
+   One hue for both sides, underline against strikethrough, is what a word
+   processor does — and it did not read here. Dimmed to 0.62 and struck in the
+   same colour as the replacement, the removed words were hard to pick out of
+   the sentence at all, which defeats the point: you cannot judge a swap you
+   cannot see both halves of. So deletions get their own hue and their own
+   tint, and keep full contrast. Muted rose rather than an alarm red: this is
+   text on its way out, not an error. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug-del {
+  color: var(--sug-del);
+  background: var(--sug-del-tint);
+  border-radius: 2px;
+  padding: 0 1px;
+  text-decoration: line-through;
+  text-decoration-color: var(--sug-del-line);
+  text-decoration-thickness: 1.5px;
+}
+
+/* What would arrive. It is not in the document yet, and the underline is what
+   says so. `user-select: none` because it is a widget: letting it into a
+   selection puts text in the clipboard that is in no file. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug-add {
+  color: var(--sug);
+  background: var(--sug-tint);
+  border-bottom: 1px solid var(--sug-line);
+  border-radius: 2px;
+  padding: 0 1px;
+  user-select: none;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenote-editor .milkdown .ProseMirror .sidenote-sug {
+    transition: none;
+  }
+}
+
+/* ---- suggestions: the card ---------------------------------------------- */
+
+/* The decision block, on a comment card or on a card of its own. */
+.sug-decide {
+  border-top: 1px solid var(--hairline);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ccard.is-suggestion .sug-decide {
+  border-top: none;
+  padding-top: 2px;
+}
+
+.sug-decide-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sug-badge {
+  font: 500 11px/1.3 var(--font-ui);
+  letter-spacing: 0.02em;
+  color: var(--sug);
+}
+
+.sug-counts {
+  font: 400 11px/1.3 var(--font-code);
+  color: var(--fg-3);
+}
+
+.sug-counts .sug-out {
+  color: var(--sug-del);
+}
+
+.sug-counts .sug-in {
+  color: var(--sug);
+}
+
+.sug-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sug-actions button {
+  font: 500 12px/1 var(--font-ui);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Accept carries the suggestion hue rather than the app accent, so the button
+   and the text it would commit are visibly the same subject — but tinted, not
+   filled. A saturated block of the hue shouted next to prose set in the same
+   hue, and the margin is meant to sit beside the document rather than pull the
+   eye out of it. The border and the weight are what mark it as the primary
+   action; Reject keeps a plain hairline. */
+.sug-accept {
+  background: var(--sug-tint);
+  border: 1px solid var(--sug-line);
+  color: var(--sug);
+  font-weight: 550;
+}
+
+.sug-accept:hover {
+  background: var(--sug-hover);
+  border-color: var(--sug);
+}
+
+.sug-reject {
+  background: transparent;
+  border: 1px solid var(--hairline-strong);
+  color: var(--fg-2);
+}
+
+.sug-reject:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* ---- editor: Crepe tokens ---------------------------------------------- */
+
+.sidenote-editor .milkdown {
+  --crepe-color-background: var(--bg);
+  --crepe-color-on-background: var(--fg);
+  --crepe-color-surface: var(--bg-elev);
+  --crepe-color-surface-low: var(--surface);
+  --crepe-color-on-surface: var(--fg);
+  --crepe-color-on-surface-variant: var(--fg-2);
+  --crepe-color-outline: var(--fg-3);
+  --crepe-color-primary: var(--fg);
+  --crepe-color-secondary: var(--surface-2);
+  --crepe-color-on-secondary: var(--fg);
+  --crepe-color-inverse: var(--fg);
+  --crepe-color-on-inverse: var(--bg);
+  --crepe-color-inline-code: var(--fg);
+  --crepe-color-error: #c0392b;
+  --crepe-color-hover: var(--surface);
+  --crepe-color-selected: var(--selection);
+  --crepe-color-inline-area: var(--surface);
+  --crepe-base-font-size: 15px;
+  --crepe-font-title: var(--font-body);
+  --crepe-font-default: var(--font-body);
+  --crepe-font-code: var(--font-code);
+  --crepe-shadow-1: none;
+  --crepe-shadow-2: none;
+  background: transparent;
+}
+
+.sidenote-editor .milkdown .ProseMirror {
+  padding: 0;
+  line-height: 1.6;
+  font-size: 15px;
+  letter-spacing: -0.011em;
+  font-weight: var(--body-weight);
+  /* Inter's calt rewrites -> as an arrow. This app shows you the file you are
+     reviewing, so the glyphs must match the bytes. */
+  font-variant-ligatures: no-contextual;
+  max-width: 680px;
+  margin: 0 auto;
+  outline: none;
+  caret-color: var(--accent);
+}
+.sidenote-editor .milkdown .ProseMirror *::selection {
+  background: var(--selection);
+}
+
+.sidenote-editor .milkdown .ProseMirror p {
+  margin: 0 0 1em;
+}
+.sidenote-editor .milkdown .ProseMirror h1,
+.sidenote-editor .milkdown .ProseMirror h2,
+.sidenote-editor .milkdown .ProseMirror h3,
+.sidenote-editor .milkdown .ProseMirror h4,
+.sidenote-editor .milkdown .ProseMirror h5,
+.sidenote-editor .milkdown .ProseMirror h6 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.5em 0 0.4em;
+}
+/* Tracking tightens as size grows. Sizes are px, not em, because the scale
+   is not proportional to the body step. */
+.sidenote-editor .milkdown .ProseMirror h1 {
+  font-size: 28px;
+  letter-spacing: -0.022em;
+  margin-top: 0.3em;
+}
+.sidenote-editor .milkdown .ProseMirror h2 {
+  font-size: 21px;
+  letter-spacing: -0.02em;
+}
+.sidenote-editor .milkdown .ProseMirror h3 {
+  font-size: 17px;
+  letter-spacing: -0.017em;
+  font-weight: 550;
+}
+.sidenote-editor .milkdown .ProseMirror h4,
+.sidenote-editor .milkdown .ProseMirror h5,
+.sidenote-editor .milkdown .ProseMirror h6 {
+  font-size: 15px;
+  letter-spacing: -0.011em;
+  font-weight: 550;
+}
+
+.sidenote-editor .milkdown .ProseMirror a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-underline);
+}
+.sidenote-editor .milkdown .ProseMirror code {
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  border: 0;
+}
+.sidenote-editor .milkdown .ProseMirror blockquote {
+  border-left: 2px solid var(--hairline-strong);
+  margin: 0 0 1em;
+  padding: 0 0 0 1em;
+  color: var(--fg-2);
+}
+/* Crepe draws its own bar here; the border-left above is ours. */
+.sidenote-editor .milkdown .ProseMirror blockquote::before {
+  display: none;
+}
+
+/* The language picker floats over the document, so it needs an opaque
+   surface. --crepe-color-surface-low is a translucent overlay tint; every
+   other Crepe popup uses --bg-elev with a hairline, so match them. */
+.sidenote-editor .milkdown .milkdown-code-block .list-wrapper {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+/* CodeMirror paints the active line even when the block is not focused,
+   which reads as a stray band across every code block. */
+.sidenote-editor .milkdown .cm-editor:not(.cm-focused) .cm-activeLine {
+  background: transparent;
+}
+.sidenote-editor .milkdown .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  margin: 2em 0;
+}
+.sidenote-editor .milkdown .ProseMirror ul,
+.sidenote-editor .milkdown .ProseMirror ol {
+  padding-left: 0;
+  margin: 0 0 1em;
+}
+.sidenote-editor .milkdown .ProseMirror li ul,
+.sidenote-editor .milkdown .ProseMirror li ol {
+  padding-left: 0.6em;
+  margin-bottom: 0;
+}
+.sidenote-editor .milkdown .milkdown-list-item-block li {
+  gap: 6px;
+}
+.sidenote-editor .milkdown .milkdown-list-item-block li .label-wrapper,
+.sidenote-editor .milkdown .milkdown-list-item-block li .label-wrapper .label {
+  width: 20px;
+}
+.sidenote-editor .milkdown .ProseMirror li p {
+  margin: 0 0 0.3em;
+}
+.sidenote-editor .milkdown .ProseMirror img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* tables */
+.sidenote-editor .milkdown .ProseMirror table {
+  border-collapse: collapse;
+  font-size: 0.92em;
+  margin: 0 0 1.2em;
+  width: 100%;
+}
+.sidenote-editor .milkdown .ProseMirror th,
+.sidenote-editor .milkdown .ProseMirror td {
+  border: 1px solid var(--hairline);
+  padding: 0.4em 0.7em;
+  text-align: left;
+  vertical-align: top;
+}
+.sidenote-editor .milkdown .ProseMirror th {
+  font-weight: 600;
+  background: var(--surface);
+}
+
+/* code blocks (CodeMirror feature) */
+.sidenote-editor .milkdown .milkdown-code-block {
+  background: var(--surface);
+  border: 0;
+  border-radius: 8px;
+  margin: 0 0 1.2em;
+  font-size: 0.88em;
+}
+.sidenote-editor .milkdown .milkdown-code-block .cm-editor {
+  background: transparent;
+  font-family: var(--font-code);
+}
+.sidenote-editor .milkdown .milkdown-code-block .cm-scroller {
+  font-family: var(--font-code);
+  line-height: 1.55;
+}
+.sidenote-editor .milkdown .milkdown-code-block .cm-gutters {
+  display: none;
+}
+
+/* floating ui: toolbar, slash menu, block handle, link tooltip */
+.sidenote-editor .milkdown .milkdown-toolbar,
+.sidenote-editor .milkdown .milkdown-slash-menu,
+.sidenote-editor .milkdown .milkdown-link-preview,
+.sidenote-editor .milkdown .milkdown-link-edit {
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  box-shadow: none;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg);
+}
+.sidenote-editor .milkdown .milkdown-toolbar .toolbar-item {
+  width: 28px;
+  height: 28px;
+  margin: 4px 2px;
+  padding: 4px;
+  border-radius: 6px;
+}
+.sidenote-editor .milkdown .milkdown-toolbar .toolbar-item svg {
+  width: 20px;
+  height: 20px;
+  color: var(--fg-2);
+  fill: var(--fg-2);
+}
+.sidenote-editor .milkdown .milkdown-toolbar .divider {
+  height: 18px;
+  margin: 9px 4px;
+}
+.sidenote-editor .milkdown .milkdown-toolbar .toolbar-item.active svg {
+  color: var(--accent);
+  fill: var(--accent);
+}
+.sidenote-editor .milkdown .milkdown-slash-menu {
+  padding: 4px;
+}
+.sidenote-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li {
+  border-radius: 6px;
+}
+.sidenote-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li.hover,
+.sidenote-editor .milkdown .milkdown-slash-menu .menu-groups .menu-group li:hover {
+  background: var(--surface);
+}
+/* The ⠿ block handle is hidden. Its one job beyond the slash menu was
+   dragging a block, and no drag can start in this window: `dragDropEnabled`
+   is on so Tauri reports real paths for dropped files, and wry then claims
+   every drag before WebKit sees it. It cannot be switched off in the Crepe
+   config — BlockEdit owns the slash menu too, and `blockHandle.shouldShow`
+   is declared but never read by BlockProvider (7.22.1) — so it goes here.
+   The element still mounts and still measures; only `display` stops it. */
+.sidenote-editor .milkdown .milkdown-block-handle {
+  display: none;
+}
+
+/* image resize handle.
+
+   The document is plain markdown, which has nowhere to record a size, so a
+   resize would be lost on the next save. Offering a handle that quietly undoes
+   itself is worse than offering none. See `keepImageAltText` in Editor.tsx:
+   the alt text is what the file keeps instead of the ratio. */
+.sidenote-editor .milkdown .image-resize-handle {
+  display: none;
+}
+
+/* placeholder */
+.sidenote-editor .milkdown .crepe-placeholder::before {
+  color: var(--fg-3);
+}
+
+/* drop cursor / gap cursor */
+.sidenote-editor .milkdown .ProseMirror-gapcursor:after {
+  border-top-color: var(--accent);
+}
+
+/* ---- versions ---------------------------------------------------------- */
+
+.panel-empty {
+  padding: 8px 10px;
+  color: var(--fg-3);
+}
+
+.versions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.version {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.version:hover {
+  background: var(--surface);
+}
+.version-selected {
+  background: var(--surface-2);
+}
+.version-name {
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: var(--fg);
+  width: 40px;
+  flex: none;
+}
+.version-meta {
+  flex: 1;
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.version-diff {
+  margin-top: 12px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 8px;
+}
+.version-diff-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  font-size: 11px;
+  color: var(--fg-3);
+  margin-bottom: 6px;
+}
+.diff {
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.5;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.diff-row {
+  display: flex;
+  align-items: flex-start;
+  color: var(--fg-2);
+}
+.diff-gutter {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  color: var(--fg-3);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.diff-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-right: 8px;
+}
+.diff-add {
+  background: rgba(52, 199, 89, 0.12);
+  color: var(--fg);
+}
+.diff-add .diff-gutter {
+  color: #2f9e5f;
+}
+.diff-del {
+  background: rgba(255, 69, 58, 0.12);
+  color: var(--fg);
+}
+.diff-del .diff-gutter {
+  color: #d0463c;
+}
+.diff-hunk {
+  color: var(--fg-3);
+  background: var(--surface);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  padding-left: 18px;
+}
+.diff-hunk .diff-gutter {
+  display: none;
+}
+
+/* ---- drop target ------------------------------------------------------- */
+
+.drop-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-tint);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  pointer-events: none;
+  animation: fade 120ms var(--ease);
+}
+.drop-note {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+/* ---- settings sheet ---------------------------------------------------- */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  animation: fade 120ms var(--ease);
+}
+/* The welcome must be answered before the app is usable, so it dims harder
+   than a preferences sheet. At 0.25 over the dark theme the start screen
+   behind it stayed fully legible and the sheet did not read as modal. */
+.sheet-backdrop.is-welcome {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* Centred, unlike the preferences sheet: this one is the whole screen's
+     business. The padding replaces the 12vh top inset so a short window
+     still leaves a margin. */
+  align-items: center;
+  padding: 24px;
+}
+.sheet {
+  width: 460px;
+  max-width: calc(100vw - 48px);
+  /* Cap the height so a long sheet scrolls inside itself instead of running
+     off a short window. */
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  color: var(--fg);
+  animation: doc-in 180ms var(--ease);
+}
+.sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--hairline);
+}
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 18px;
+}
+.sheet-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--fg-3);
+  padding: 9px 18px;
+  border-top: 1px solid var(--hairline);
+}
+.foot-update {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.foot-update .avail {
+  color: var(--accent);
+}
+
+/* The welcome sheet is a single flow, not a head/body/foot stack, so it
+   scrolls as a whole rather than in a body pane. */
+.sheet.welcome {
+  display: block;
+  overflow-y: auto;
+}
+.pref {
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+}
+.pref:first-child {
+  border-top: 0;
+}
+.pref-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  margin-bottom: 10px;
+}
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.segmented button {
+  font-size: 12px;
+  padding: 4px 14px;
+  color: var(--fg-2);
+}
+.segmented button + button {
+  border-left: 1px solid var(--hairline-strong);
+}
+.segmented button.is-on {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+.typefaces {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+/* An odd count would otherwise leave a lone half-width tile. */
+.typeface:last-child:nth-child(odd) {
+  grid-column: span 2;
+}
+.typeface {
+  font-size: 15px;
+  padding: 8px 6px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 7px;
+  color: var(--fg-2);
+  text-align: center;
+}
+.typeface:hover {
+  background: var(--surface);
+}
+.typeface.is-on {
+  border-color: var(--accent);
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.pref-rows {
+  font-size: 12px;
+}
+.pref-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--hairline);
+}
+.pref-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.pref-row span:first-child {
+  color: var(--fg-2);
+}
+.pref-row span:last-child {
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+}
+.ok {
+  color: var(--ok);
+}
+.pref-actions {
+  margin-top: 12px;
+}
+
+/* ---- welcome ----------------------------------------------------------- */
+
+.sheet.welcome {
+  width: 520px;
+  padding: 56px 36px 46px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.welcome-glyph {
+  font-family: var(--font-body);
+  font-size: 44px;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.welcome h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.welcome-lead {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+.opt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid var(--hairline);
+  cursor: default;
+}
+.opt input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.opt-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.opt-text {
+  display: block;
+  font-size: 12px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.opt-done .opt-title {
+  color: var(--fg-3);
+}
+.opt code,
+.pref-help code {
+  font-family: var(--font-code);
+  font-size: 11px;
+  background: var(--surface);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+/* The first-run explainer: two acts, human first. */
+.welcome-acts {
+  display: flex;
+  flex-direction: column;
+}
+.welcome-act {
+  display: flex;
+  gap: 13px;
+  padding: 16px 0;
+  border-top: 1px solid var(--hairline);
+}
+.welcome-act:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+.welcome-act-n {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  display: grid;
+  place-items: center;
+  position: relative;
+  top: 1px;
+}
+.welcome-act h3 {
+  font-size: 13.5px;
+  font-weight: 600;
+  margin: 0 0 3px;
+}
+.welcome-act p {
+  font-size: 12.5px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin: 0;
+}
+/* Pushed left of the buttons, so the row reads "where you are" then "what next". */
+.welcome-steps {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-right: auto;
+}
+.welcome-pip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--hairline-strong);
+}
+.welcome-pip.is-on {
+  background: var(--accent);
+}
+
+.welcome-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+}
+/* The explainer separates its own acts with hairlines, so the rule the option
+   list needs above its buttons reads as a stray line there. */
+.welcome-actions.is-plain {
+  border-top: 0;
+  /* No rule to do the separating, so the gap has to carry it alone. */
+  padding-top: 0;
+  margin-top: 34px;
+}
+.welcome-note {
+  font-size: 11.5px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin: 12px 0 0;
+  white-space: nowrap;
+}
+/* Hidden, not removed: the row keeps its height so the sheet does not jump. */
+.welcome-note.is-hidden {
+  visibility: hidden;
+}
+.welcome-foot {
+  font-size: 11px;
+  color: var(--fg-3);
+  margin: 10px 0 0;
+}
+.pref-help {
+  font-size: 12px;
+  color: var(--fg-2);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
