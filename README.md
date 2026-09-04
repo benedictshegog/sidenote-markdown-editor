@@ -14,7 +14,7 @@ Homebrew (Apple silicon, macOS 13 or later):
 brew install --cask benedictshegog/sidenote/sidenote
 ```
 
-The cask clears the quarantine flag after install (the app is unsigned; Homebrew 6 no longer has `--no-quarantine`). Or download the `.dmg` from [benedictshegog.xyz](https://benedictshegog.xyz/downloads/Sidenote_0.1.25_aarch64.dmg), copy `Sidenote.app` to `/Applications`, and allow it once under System Settings > Privacy & Security > Open Anyway. On first launch a welcome sheet offers the Claude Code integration (the `sidenote` command link, the `sidenote-review` skill) and, optionally, to make Sidenote the default app for `.md` files. Each is a checkbox; Settings (Cmd+,) repeats them.
+The cask clears the quarantine flag after install (the app is unsigned; Homebrew 6 no longer has `--no-quarantine`). Or download the `.dmg` from [benedictshegog.xyz](https://benedictshegog.xyz/downloads/Sidenote_0.1.26_aarch64.dmg), copy `Sidenote.app` to `/Applications`, and allow it once under System Settings > Privacy & Security > Open Anyway. On first launch a welcome sheet offers the Claude Code integration (the `sidenote` command link, the `sidenote-review` skill) and, optionally, to make Sidenote the default app for `.md` files. Each is a checkbox; Settings (Cmd+,) repeats them.
 
 ## Layout
 

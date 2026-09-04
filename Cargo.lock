@@ -3401,7 +3401,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "sidenote-app"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "core-foundation",
  "futures-util",
@@ -3422,7 +3422,7 @@ dependencies = [
 
 [[package]]
 name = "sidenote-cli"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "clap",
  "libc",
@@ -3433,7 +3433,7 @@ dependencies = [
 
 [[package]]
 name = "sidenote-core"
-version = "0.1.25"
+version = "0.1.26"
 dependencies = [
  "chrono",
  "libc",
