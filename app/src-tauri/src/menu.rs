@@ -55,7 +55,16 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &PredefinedMenuItem::hide_others(app, None)?,
             &PredefinedMenuItem::show_all(app, None)?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, None)?,
+            // Ours, not `PredefinedMenuItem::quit`: that one terminates the
+            // process from inside AppKit, before the UI can ask about an
+            // unsaved draft. `commands::request_quit` has the round trip.
+            &MenuItem::with_id(
+                app,
+                "quit",
+                format!("Quit {}", app.package_info().name),
+                true,
+                Some("CmdOrCtrl+Q"),
+            )?,
         ],
     )?;
 
@@ -86,9 +95,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         "File",
         true,
         &[
-            &MenuItem::with_id(app, "new_window", "New Window", true, Some("CmdOrCtrl+N"))?,
+            &MenuItem::with_id(app, "new_doc", "New Document", true, Some("CmdOrCtrl+N"))?,
+            &MenuItem::with_id(app, "new_window", "New Window", true, Some("CmdOrCtrl+Shift+N"))?,
             &MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?,
             &recent_menu,
+            &PredefinedMenuItem::separator(app)?,
+            // Names the file for a new document; an opened one autosaves, so
+            // there it only writes whatever is still on the timer.
+            &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "close_doc", "Close Tab", true, Some("CmdOrCtrl+W"))?,
             &MenuItem::with_id(app, "reopen_tab", "Reopen Closed Tab", true, Some("CmdOrCtrl+Shift+T"))?,
@@ -244,6 +258,7 @@ pub fn install_handler(app: &AppHandle) {
     app.on_menu_event(|app, event| {
         let id = event.id().0.clone();
         match id.as_str() {
+            "quit" => crate::commands::request_quit(app),
             "reveal_home" => {
                 let state = app.state::<Arc<AppState>>();
                 let _ = std::process::Command::new("open")

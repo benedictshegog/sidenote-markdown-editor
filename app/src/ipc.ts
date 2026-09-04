@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import type {
   Anchored,
+  AppInfo,
   ApplyResult,
   CliStatus,
   DocEntry,
@@ -63,6 +64,11 @@ export const ipc = {
   unwatchDoc: (path: string) => invoke<void>('unwatch_doc', { path }),
   windowCount: () => invoke<number>('window_count'),
   newWindow: (path?: string | null) => invoke<string>('new_window', { path: path ?? null }),
+  appInfo: () => invoke<AppInfo>('app_info'),
+  /** This window has settled its drafts and written its documents; quit may go on. */
+  quitReady: () => invoke<void>('quit_ready'),
+  /** The user kept an unsaved draft; the quit is off. */
+  quitCancel: () => invoke<void>('quit_cancel'),
   readSnapshot: (id: string, name: string) => invoke<string>('read_snapshot', { id, name }),
   diffSnapshot: (id: string, name: string, other?: string | null) =>
     invoke<string>('diff_snapshot', { id, name, other: other ?? null }),

@@ -4,6 +4,8 @@ A Mac app to review markdown documents written by Claude Code.
 
 Open a document, edit it in a Notion-style WYSIWYG editor, and leave comments on the text you select. The Claude Code session that wrote the document picks up your comments and replies in them. There is no Send button.
 
+Or start from nothing: New Document (⌘N) opens a blank page to write on, and Save (⌘S) asks where the file goes. Closing a page with text on it asks first.
+
 Your markdown file stays clean: comments, replies and versions are kept in `~/.sidenote/`.
 
 ## Install
@@ -29,8 +31,19 @@ The cask clears the quarantine flag after install (the app is unsigned; Homebrew
 # Rust toolchain: rustup (stable). Node: pnpm.
 cd app && pnpm install
 ./scripts/build-cli.sh            # builds the sidenote sidecar the Tauri build expects
-pnpm tauri dev                    # runs the app with hot reload
+pnpm dev:app                      # runs the app with hot reload, beside the installed one
 ```
+
+`pnpm dev:app` is `tauri dev` with `src-tauri/tauri.dev.conf.json` merged in,
+which gives the debug build its own identity so it runs next to the installed
+Sidenote rather than being turned away by it: a different bundle identifier
+(the single-instance check keys on it), the name "Sidenote Dev", an orange
+icon, and a "Dev" tag in the corner of every window. A debug build also
+listens on port 47294 rather than 47293, and a debug CLI dials the same, so
+`target/debug/sidenote` talks to the dev app and the installed `sidenote` to
+the installed app. `SIDENOTE_PORT` overrides either side. Both apps share
+`~/.sidenote`, so the dev app shows the same documents; only the listeners
+file is split by port.
 
 Tests:
 
@@ -41,7 +54,7 @@ cli/tests/e2e.sh                  # plays the skill's steps against a temp ~/.si
 
 ## Structure of the frontend
 
-`App.tsx` is the shell: tab bar, sidebar, settings, welcome sheet, menu routing. `DocumentView.tsx` is one open document (editor, autosave, comments, panel, versions, busy lock); one instance per tab, hidden when inactive. Document-scoped menu items are forwarded to the active tab through `DocumentActions`.
+`App.tsx` is the shell: tab bar, sidebar, settings, welcome sheet, menu routing. `DocumentView.tsx` is one open document (editor, autosave, comments, panel, versions, busy lock); one instance per tab, hidden when inactive. Document-scoped menu items are forwarded to the active tab through `DocumentActions`. `DraftView.tsx` is a document that has no file yet — New Document before Save — and is the editor alone; Save writes the file, registers it, and swaps the tab for a `DocumentView`. Quit is a round trip through the backend (`request_quit`) so every window can ask about its drafts first.
 
 ## Release
 
@@ -100,6 +113,7 @@ Diagnostics: JS errors and the boot marker go to `~/.sidenote/ui.log`. The dev a
 ~/.sidenote/
   index.json              doc id -> path, title, last opened, owner_session
   listeners.json          sessions connected to the running app (valid while pid lives)
+  listeners-47294.json    the same for a dev build, which listens on its own port
   docs/<id>/
     threads.json          comment threads with text quote selectors
     state.json            busy lock, suggesting mode

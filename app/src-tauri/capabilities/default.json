@@ -15,6 +15,7 @@
     "dialog:default",
     "core:window:allow-set-theme",
     "core:window:allow-close",
+    "core:window:allow-destroy",
     "core:window:allow-theme",
     "core:window:allow-show",
     "core:window:allow-set-focus"

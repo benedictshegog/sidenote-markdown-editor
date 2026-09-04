@@ -109,8 +109,16 @@ impl Store {
     pub fn index_path(&self) -> PathBuf {
         self.home.join("index.json")
     }
+    /// Sessions connected to the running app. One file per port, so a dev
+    /// app beside the installed one neither reads its sessions nor deletes
+    /// its file on exit; the release port keeps the plain name.
     pub fn listeners_path(&self) -> PathBuf {
-        self.home.join("listeners.json")
+        let port = crate::app_port();
+        if port == crate::DEFAULT_PORT {
+            self.home.join("listeners.json")
+        } else {
+            self.home.join(format!("listeners-{port}.json"))
+        }
     }
     pub fn doc_dir(&self, id: &str) -> PathBuf {
         self.home.join("docs").join(id)

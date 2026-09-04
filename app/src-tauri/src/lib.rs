@@ -87,7 +87,8 @@ pub fn create_window(app: &AppHandle, path: Option<&Path>) -> tauri::Result<taur
             Some(pos.to_logical::<f64>(scale))
         });
     let mut builder = WebviewWindowBuilder::new(app, &label, url)
-        .title("Sidenote")
+        // The product name, so a dev build's windows say so in Mission Control.
+        .title(app.package_info().name.clone())
         .inner_size(1180.0, 820.0)
         .min_inner_size(720.0, 480.0)
         // No native drag-drop handler. tauri-runtime-wry's handler claims every
@@ -311,6 +312,9 @@ pub fn run() {
             commands::unwatch_doc,
             commands::window_count,
             commands::new_window,
+            commands::app_info,
+            commands::quit_ready,
+            commands::quit_cancel,
             commands::read_snapshot,
             commands::diff_snapshot,
             commands::restore_snapshot,
@@ -395,6 +399,8 @@ pub fn run() {
             watch::forget_window(app, &label);
             // Its tabs went with it, and the badge counts open tabs.
             commands::refresh_badge(app, &state);
+            // A quit waiting on this window need not wait any longer.
+            commands::window_settled(app, &state, &label);
         }
         RunEvent::Exit => {
             let state = app.state::<Arc<AppState>>();

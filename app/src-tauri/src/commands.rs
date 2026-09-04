@@ -759,6 +759,83 @@ pub fn window_count(app: AppHandle) -> usize {
     app.webview_windows().len()
 }
 
+/// What this build is, for the badge that tells a dev app from the installed one.
+#[derive(Serialize)]
+pub struct AppInfo {
+    pub name: String,
+    pub version: String,
+    pub dev: bool,
+    pub port: u16,
+}
+
+#[tauri::command]
+pub fn app_info(app: AppHandle) -> AppInfo {
+    let info = app.package_info();
+    AppInfo {
+        name: info.name.clone(),
+        version: info.version.to_string(),
+        dev: cfg!(debug_assertions),
+        port: sidenote_core::app_port(),
+    }
+}
+
+// ---- quitting -----------------------------------------------------------------
+
+/// Quit, once every window has had its say.
+///
+/// The predefined Quit item sends `terminate:` straight to NSApp, which ends
+/// the process without a word to the UI: a draft typed a moment ago is gone,
+/// and an autosave still on its timer never lands. So Cmd+Q is an ordinary
+/// menu item and quitting is a round trip. Every window is asked; each one
+/// settles its unsaved drafts (Save, Don't Save, or Cancel), flushes its
+/// documents, and reports ready; the app exits when the last of them has. One
+/// Cancel calls the whole thing off.
+///
+/// A second Cmd+Q while one is pending exits at once. That is the way out
+/// when a webview is not answering, and nothing else: while a dialog is up
+/// the menu's key equivalents are disabled, so it cannot fire by accident
+/// over a question that is still open.
+pub fn request_quit(app: &AppHandle) {
+    let state = app.state::<Arc<AppState>>();
+    let labels: HashSet<String> = app.webview_windows().keys().cloned().collect();
+    let mut pending = state.quit_pending.lock().unwrap();
+    if pending.is_some() || labels.is_empty() {
+        app.exit(0);
+        return;
+    }
+    *pending = Some(labels);
+    drop(pending);
+    let _ = app.emit("confirm-quit", ());
+}
+
+/// A window has nothing left to save, or is gone. Exit when it was the last
+/// one a pending quit was waiting for.
+pub fn window_settled(app: &AppHandle, state: &AppState, label: &str) {
+    let done = {
+        let mut pending = state.quit_pending.lock().unwrap();
+        match pending.as_mut() {
+            Some(set) => {
+                set.remove(label);
+                set.is_empty()
+            }
+            None => false,
+        }
+    };
+    if done {
+        app.exit(0);
+    }
+}
+
+#[tauri::command]
+pub fn quit_ready(app: AppHandle, window: tauri::Window, state: S) {
+    window_settled(&app, &state, window.label());
+}
+
+#[tauri::command]
+pub fn quit_cancel(state: S) {
+    *state.quit_pending.lock().unwrap() = None;
+}
+
 #[tauri::command]
 pub fn new_window(app: AppHandle, path: Option<String>) -> Result<String, String> {
     crate::create_window(&app, path.as_deref().map(Path::new))
@@ -849,8 +926,17 @@ pub fn cli_status(app: AppHandle) -> CliStatus {
     }
 }
 
+/// What a debug build must not do to the machine it runs on: link its own
+/// debug binary over the installed `sidenote`, or register its `.dev` bundle
+/// as the handler for every markdown file. Both are one click in the welcome
+/// sheet, and a dev build with a fresh webview store shows that sheet.
+const DEV_REFUSAL: &str = "not from a dev build: it would replace the installed Sidenote's integration";
+
 #[tauri::command]
 pub fn install_cli(app: AppHandle) -> Result<String, String> {
+    if cfg!(debug_assertions) {
+        return Err(DEV_REFUSAL.into());
+    }
     let src = bundled_cli(&app).ok_or("the sidenote binary is not bundled with this build")?;
     let link = PathBuf::from(CLI_LINK);
     // Already pointing at this binary: nothing to do.
@@ -1075,7 +1161,14 @@ pub struct DefaultHandler {
 
 #[tauri::command]
 pub fn default_md_handler(app: AppHandle) -> DefaultHandler {
-    let me = app.config().identifier.clone();
+    // A dev build answers for the installed app: `tauri.dev.conf.json` adds
+    // `.dev` to the identifier, and the question is whether markdown opens in
+    // Sidenote, not in this binary.
+    let me = app
+        .config()
+        .identifier
+        .trim_end_matches(".dev")
+        .to_string();
     #[cfg(target_os = "macos")]
     {
         let utis = launch_services::markdown_utis();
@@ -1099,6 +1192,9 @@ pub fn default_md_handler(app: AppHandle) -> DefaultHandler {
 
 #[tauri::command]
 pub fn set_default_md_handler(app: AppHandle) -> Result<Vec<String>, String> {
+    if cfg!(debug_assertions) {
+        return Err(DEV_REFUSAL.into());
+    }
     let me = app.config().identifier.clone();
     #[cfg(target_os = "macos")]
     {

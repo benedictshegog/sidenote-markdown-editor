@@ -19,8 +19,6 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::state::{AppState, Client};
 
-pub const PORT: u16 = 47293;
-
 /// Sockets held at once. One Claude Code session needs one, and a handful of
 /// sessions is a busy day, so this is far above real use and only bounds what
 /// a stuck or hostile client can accumulate.
@@ -28,7 +26,7 @@ const MAX_CLIENTS: usize = 64;
 
 pub fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        let addr = format!("127.0.0.1:{PORT}");
+        let addr = format!("127.0.0.1:{}", sidenote_core::app_port());
         let listener = match TcpListener::bind(&addr).await {
             Ok(l) => l,
             Err(e) => {

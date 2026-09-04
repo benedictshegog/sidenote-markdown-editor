@@ -300,7 +300,7 @@ fn ws_request(frame: &str) -> Result<serde_json::Value, SidenoteError> {
     use tungstenite::stream::MaybeTlsStream;
     use tungstenite::Message;
 
-    let mut req = "ws://127.0.0.1:47293"
+    let mut req = format!("ws://127.0.0.1:{}", sidenote_core::app_port())
         .into_client_request()
         .map_err(|e| SidenoteError::Other(e.to_string()))?;
     req.headers_mut()

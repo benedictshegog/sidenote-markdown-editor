@@ -117,6 +117,9 @@ interface Props {
   onSelectionChange: (hasSelection: boolean) => void;
   /** Locked while the Claude Code session holds the document. */
   readonly: boolean;
+  /** The editor exists and takes commands. Focus is the usual reason to
+   *  wait for it: a `focus()` before this is a no-op. */
+  onReady?: () => void;
 }
 
 // Block-type buttons for the selection toolbar. Crepe has no way back from a
@@ -423,6 +426,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
           readyRef.current = true;
           crepeRef.current = crepe;
           crepe.setReadonly(propsRef.current.readonly);
+          propsRef.current.onReady?.();
         })
         .catch((e) => {
           console.error("sidenote: editor failed to create", e);

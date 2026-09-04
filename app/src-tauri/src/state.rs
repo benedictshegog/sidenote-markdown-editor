@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -56,6 +56,9 @@ pub struct AppState {
     /// Files requested via Finder / `open -a` before the UI was ready.
     pub pending_opens: Mutex<Vec<PathBuf>>,
     pub ui_ready: Mutex<bool>,
+    /// Windows a Quit is still waiting on; `None` when no quit is in progress.
+    /// See `commands::request_quit`.
+    pub quit_pending: Mutex<Option<HashSet<String>>>,
 }
 
 impl AppState {
@@ -71,6 +74,7 @@ impl AppState {
             next_window: Mutex::new(1),
             pending_opens: Mutex::new(Vec::new()),
             ui_ready: Mutex::new(false),
+            quit_pending: Mutex::new(None),
         }
     }
 }

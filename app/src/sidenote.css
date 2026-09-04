@@ -460,6 +460,20 @@ button {
   background: var(--surface);
   color: var(--fg);
 }
+/* A draft with text in it: a dot stands in for the close cross until the
+   pointer arrives, as the close button of a document window does on macOS. */
+.tab-dot {
+  display: none;
+}
+.tab-dirty .tab-close {
+  opacity: 1;
+}
+.tab-dirty:not(:hover) .tab-x {
+  display: none;
+}
+.tab-dirty:not(:hover) .tab-dot {
+  display: inline;
+}
 
 /* ---- document ---------------------------------------------------------- */
 
@@ -498,6 +512,60 @@ button {
   text-overflow: ellipsis;
   direction: rtl;
   text-align: left;
+}
+
+/* ---- unsaved document -------------------------------------------------- */
+
+/* Takes the path line's exact measure, so the page does not shift when Save
+   turns the draft into a document with a path. */
+.draft-note {
+  height: 20px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.draft-note .btn-link {
+  font-size: 11px;
+}
+
+/* ---- dev build --------------------------------------------------------- */
+
+/* A development build running beside the installed app. The mark on the
+   start screen turns orange, as its Dock icon does, and a tag sits in the
+   corner nothing else uses. Both are decided by the backend (`app_info`), so
+   a release build never shows either. */
+.app.is-dev {
+  --dev: #e8823a;
+}
+.app.is-dev .start-glyph {
+  color: var(--dev);
+}
+.dev-chip {
+  position: fixed;
+  right: 12px;
+  bottom: 10px;
+  z-index: 20;
+  box-sizing: border-box;
+  height: 18px;
+  padding: 0 7px;
+  /* Measured off a screenshot at 2x: the caps sat half a point low and half
+     a point left. A line box one point shorter than the content lifts them;
+     the indent puts back what the tracking leaves after the last letter. */
+  line-height: 15px;
+  text-indent: 0.06em;
+  border-radius: 999px;
+  border: 1px solid var(--dev);
+  color: var(--dev);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ---- file not found ---------------------------------------------------- */
@@ -566,8 +634,12 @@ button {
   gap: 20px;
   color: var(--fg-2);
 }
-.start-head .btn-quiet {
+.start-actions {
+  display: flex;
+  gap: 10px;
   margin-top: -4px;
+}
+.start-actions .btn-quiet {
   padding: 5px 12px;
 }
 .start-glyph {
@@ -589,14 +661,14 @@ button {
 }
 .start-glyph,
 .start-head p,
-.start-head .btn-quiet,
+.start-actions,
 .start .recents {
   animation: start-rise 380ms var(--ease) both;
 }
 .start-head p {
   animation-delay: 60ms;
 }
-.start-head .btn-quiet {
+.start-actions {
   animation-delay: 110ms;
 }
 .start .recents {
@@ -605,7 +677,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .start-glyph,
   .start-head p,
-  .start-head .btn-quiet,
+  .start-actions,
   .start .recents {
     animation: none;
   }

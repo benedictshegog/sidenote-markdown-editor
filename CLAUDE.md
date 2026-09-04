@@ -76,9 +76,16 @@ holds the pre-release history.
   point.
 - **Build the CLI before compiling the app.** `bundle.externalBin` makes
   `tauri-build` fail until the sidecar exists: `app/scripts/build-cli.sh`.
-- **Review UI changes in the running app before pushing.** `pnpm tauri dev`.
-  Quit any installed `Sidenote.app` first — `tauri-plugin-single-instance`
-  makes the dev build exit immediately if one is already running.
+- **Review UI changes in the running app before pushing.** `pnpm dev:app`
+  (not bare `pnpm tauri dev`: the dev config gives the debug build its own
+  identity, port and icon, so it runs beside the installed `Sidenote.app`
+  instead of being turned away by the single-instance check). A debug CLI
+  (`target/debug/sidenote`) reaches the dev app; the installed `sidenote`
+  reaches the installed app.
+- **When a feature is done, launch the dev app for QA without being asked.**
+  Benedict reviews every UI change in the running app himself. Start
+  `pnpm dev:app` from the worktree, wait for the window, and say what to try.
+  Leave it running; he quits it.
 - **Use a worktree under `.worktrees/`** for non-trivial changes when other
   work is in flight, so two sessions do not fight over the tree.
 - Do not commit QA scaffolding. A browser harness that mocks the Tauri

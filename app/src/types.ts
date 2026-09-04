@@ -163,3 +163,12 @@ export type ApplyResult =
   | { ok: true; suggested: string }
   | { ok: false; error: 'stale'; found: number }
   | { ok: false; error: 'not_ready' }
+
+/** Which build this is. A dev build beside the installed app says so. */
+export interface AppInfo {
+  name: string
+  version: string
+  dev: boolean
+  /** The WebSocket port the CLI must dial to reach this app. */
+  port: number
+}

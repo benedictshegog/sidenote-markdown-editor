@@ -122,6 +122,9 @@ interface Props {
   onToast: (t: string) => void;
   /** The document was relinked to a new path; the shell updates the tab. */
   onDocChanged: (doc: DocEntry) => void;
+  /** Put the cursor in the page once it is up. Set for a draft that has just
+   *  been saved, so the typing that was going on can carry on. */
+  focusOnLoad?: boolean;
 }
 
 interface Loaded {
@@ -130,8 +133,13 @@ interface Loaded {
 }
 
 export const DocumentView = forwardRef<DocumentActions, Props>(
-  function DocumentView({ doc, active, onToast, onDocChanged }, ref) {
+  function DocumentView(
+    { doc, active, onToast, onDocChanged, focusOnLoad },
+    ref,
+  ) {
     const editor = useRef<EditorHandle>(null);
+    const focusOnLoadRef = useRef(focusOnLoad);
+    focusOnLoadRef.current = focusOnLoad;
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [missing, setMissing] = useState<{
       doc: DocEntry;
@@ -1595,6 +1603,9 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                       setSelected(sg?.thread ?? null);
                       setPanelMode("threads");
                       setPanelForced(true);
+                    }}
+                    onReady={() => {
+                      if (focusOnLoadRef.current) editor.current?.focus();
                     }}
                     readonly={busy}
                   />
