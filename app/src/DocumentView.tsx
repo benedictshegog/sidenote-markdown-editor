@@ -1286,7 +1286,11 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
               type="button"
               className={`session ${listeners?.connected ? "is-on" : ""}`}
               title={dotTitle}
-              onClick={() => setSessionMenu((v) => !v)}
+              onClick={() => {
+                // One popover at a time: the two hang from the same pill.
+                setCopyMenu(false);
+                setSessionMenu((v) => !v);
+              }}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1357,7 +1361,10 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                 type="button"
                 className={`pill-btn ${copyMenu ? "is-on" : ""}`}
                 title="Copy document as…"
-                onClick={() => setCopyMenu((v) => !v)}
+                onClick={() => {
+                  setSessionMenu(false);
+                  setCopyMenu((v) => !v);
+                }}
               >
                 <svg
                   viewBox="0 0 24 24"

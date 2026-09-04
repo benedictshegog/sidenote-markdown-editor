@@ -273,11 +273,43 @@ button {
   pointer-events: auto;
 }
 .sidebar-head {
+  /* `flex: none`: without it a long Recent list shrinks the head (measured at
+     34px with a full list) and the title ends up level with the lights only
+     by accident. The list scrolls instead, below. */
+  flex: none;
   height: var(--title-h);
   display: flex;
-  align-items: flex-end;
+  /* Centred on the bar, like the tabs and the traffic lights. */
+  align-items: center;
   justify-content: space-between;
-  padding: 0 12px 8px 78px;
+  /* Same inset as .tabbar-inset: the traffic lights end at x=78 (measured on
+     macOS 26, 14pt lights at x=18), and 78px of padding put "Recent" flush
+     against the green one. */
+  padding: 0 8px 0 96px;
+}
+/* The sidebar toggle. Closed, it sits in the tab bar just past the traffic
+   lights; open, at the right end of the sidebar head — the button follows the
+   pane's edge, the way Finder's and Notes' do. */
+.side-toggle {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  align-self: center;
+  border-radius: 6px;
+  color: var(--fg-3);
+  fill: var(--fg-3);
+}
+.side-toggle svg {
+  display: block;
+  margin: auto;
+}
+.side-toggle:hover {
+  background: var(--surface);
+  color: var(--fg);
+  fill: var(--fg);
+}
+.tabbar .side-toggle {
+  margin-right: 8px;
 }
 .sidebar-title {
   font-weight: 600;
@@ -312,7 +344,9 @@ button {
 }
 .side-path {
   font-size: 11px;
-  color: var(--fg-3);
+  /* --fg-2, not --fg-3: the sidebar sits on the lighter surface, where the
+     dark theme's --fg-3 is about 2.4:1 against it and the path vanished. */
+  color: var(--fg-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -355,7 +389,7 @@ button {
 /* With the pane closed the traffic lights sit over the tab bar; with it open
    the sidebar head holds them instead. */
 .tabbar-inset {
-  /* The traffic lights end at x=76; 20px of clear space before the tab. */
+  /* The traffic lights end at x=78; 18px of clear space before the toggle. */
   padding-left: 96px;
 }
 .tabbar-space {
@@ -436,7 +470,13 @@ button {
   padding: 40px 48px 160px;
   user-select: text;
   -webkit-user-select: text;
-  animation: doc-in 240ms var(--ease) both;
+  /* `backwards`, not `both`. A filled transform animation leaves the computed
+     transform as an identity matrix rather than `none`, and that makes .doc a
+     stacking context: the editor toolbar's z-index then only counts inside
+     .doc, and the comment margin (a later sibling) paints over the toolbar
+     wherever it spills past the column. With a selection near the right edge
+     the Comment button, the rightmost item, was the part that spilled. */
+  animation: doc-in 240ms var(--ease) backwards;
 }
 @keyframes doc-in {
   from {

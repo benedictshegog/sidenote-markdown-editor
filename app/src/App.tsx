@@ -9,7 +9,7 @@ import { ipc } from './ipc'
 import { applyTypeface, loadPreferences, Settings } from './Settings'
 import { Welcome } from './Welcome'
 import { Asterisk, Recents } from './Recents'
-import { Sidebar } from './Sidebar'
+import { Sidebar, SidebarGlyph } from './Sidebar'
 import { dismiss, dismissed, UpdateBar } from './Update'
 import type { DocEntry, UpdateStatus } from './types'
 
@@ -402,11 +402,19 @@ export default function App() {
           currentId={activeId}
           onOpen={(d) => void openDoc(d)}
           onForget={(d) => void forgetDoc(d)}
+          onClose={() => setSidebarOpen(false)}
         />
       </div>
 
       <div className="workspace">
         <div className={`tabbar ${sideOpen ? '' : 'tabbar-inset'}`} data-tauri-drag-region>
+          {/* ⌘1 is the shortcut; this is the same toggle with a face. It moves
+              into the sidebar head while the pane is open. */}
+          {tabs.length > 0 && !sideOpen && (
+            <button type="button" className="side-toggle" title="Show Sidebar (⌘1)" onClick={() => setSidebarOpen(true)}>
+              <SidebarGlyph />
+            </button>
+          )}
           {tabs.map((t) => (
             <div
               key={t.id}
