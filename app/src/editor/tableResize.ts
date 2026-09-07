@@ -99,6 +99,10 @@ function paint(tableEl: HTMLTableElement, widths: (number | null)[]) {
   }
   const complete = widths.length > 0 && widths.every((w) => w);
   const cols = complete ? widths : [];
+  // Auto layout treats <col> widths as hints and re-solves from content on
+  // every move, which is what made the drag jump. Fixed layout obeys the
+  // colgroup; a table with no widths keeps auto layout and its old look.
+  tableEl.style.tableLayout = complete ? "fixed" : "";
   while (colgroup.childElementCount > cols.length)
     colgroup.lastElementChild?.remove();
   while (colgroup.childElementCount < cols.length)
