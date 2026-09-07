@@ -170,7 +170,9 @@ function setColumnWidth(
  * destroy and rebuild the whole table element mid-drag.
  */
 function placeLine(line: HTMLElement, block: HTMLElement, cell: HTMLElement) {
-  const b = block.getBoundingClientRect();
+  // Measure against whatever really positions the line: the block is not
+  // guaranteed to be a containing block.
+  const b = (line.offsetParent ?? block).getBoundingClientRect();
   const table = cell.closest("table")?.getBoundingClientRect();
   if (!table) return;
   const c = cell.getBoundingClientRect();
