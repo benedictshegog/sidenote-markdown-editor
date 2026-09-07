@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:app": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "dev:app": "sh -c '. ../scripts/cargo-env.sh && exec tauri dev --config src-tauri/tauri.dev.conf.json'",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"

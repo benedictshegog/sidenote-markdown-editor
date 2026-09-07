@@ -1,11 +1,12 @@
 #!/bin/sh
 # End-to-end run of the sidenote CLI: plays the skill's steps without an LLM.
-# Usage: cli/tests/e2e.sh [path/to/sidenote]   (defaults to target/debug/sidenote)
+# Usage: cli/tests/e2e.sh [path/to/sidenote]   (defaults to the debug CLI in the shared target dir, see scripts/cargo-env.sh)
 set -eu
 
 cd "$(dirname "$0")/../.."
 export PATH="$HOME/.cargo/bin:$PATH"
-SIDENOTE="${1:-target/debug/sidenote}"
+. scripts/cargo-env.sh
+SIDENOTE="${1:-$CARGO_TARGET_DIR/debug/sidenote}"
 [ -x "$SIDENOTE" ] || cargo build -p sidenote-cli
 SIDENOTE="$(cd "$(dirname "$SIDENOTE")" && pwd)/$(basename "$SIDENOTE")"
 

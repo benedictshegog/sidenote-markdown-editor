@@ -27,6 +27,7 @@ CASK="Casks/sidenote.rb"
 
 cd "$(dirname "$0")/.."
 REPO_ROOT="$(pwd)"
+. scripts/cargo-env.sh
 
 say()  { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 info() { printf '    %s\n' "$1"; }
@@ -49,7 +50,7 @@ printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
   || die "version must look like 0.1.6, got '$VERSION'"
 
 DMG_NAME="Sidenote_${VERSION}_aarch64.dmg"
-DMG_PATH="$REPO_ROOT/target/release/bundle/dmg/$DMG_NAME"
+DMG_PATH="$CARGO_TARGET_DIR/release/bundle/dmg/$DMG_NAME"
 DMG_URL="$DOWNLOAD_BASE/$DMG_NAME"
 
 say "Preflight"
@@ -117,7 +118,7 @@ say "Building"
 # .claude/PAPERCUTS.md.
 hdiutil info | awk '/image-path.*Sidenote/ {found=1} END {exit !found}' \
   && die "a Sidenote disk image is still mounted; run 'hdiutil info' and detach it"
-rm -f target/release/bundle/macos/rw.*.dmg
+rm -f "$CARGO_TARGET_DIR"/release/bundle/macos/rw.*.dmg
 
 ./app/scripts/build-cli.sh release
 (cd app && pnpm tauri build)
@@ -125,7 +126,7 @@ rm -f target/release/bundle/macos/rw.*.dmg
 [ -f "$DMG_PATH" ] || die "expected $DMG_PATH, not produced"
 SHA="$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')"
 BUILT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
-  target/release/bundle/macos/Sidenote.app/Contents/Info.plist)"
+  "$CARGO_TARGET_DIR/release/bundle/macos/Sidenote.app/Contents/Info.plist")"
 [ "$BUILT" = "$VERSION" ] || die "bundle says $BUILT, expected $VERSION"
 info "$DMG_NAME  $(du -h "$DMG_PATH" | awk '{print $1}')"
 info "sha256 $SHA"

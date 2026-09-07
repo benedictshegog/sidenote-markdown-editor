@@ -80,7 +80,7 @@ holds the pre-release history.
   (not bare `pnpm tauri dev`: the dev config gives the debug build its own
   identity, port and icon, so it runs beside the installed `Sidenote.app`
   instead of being turned away by the single-instance check). A debug CLI
-  (`target/debug/sidenote`) reaches the dev app; the installed `sidenote`
+  (`$CARGO_TARGET_DIR/debug/sidenote`, see `scripts/cargo-env.sh`) reaches the dev app; the installed `sidenote`
   reaches the installed app.
 - **When a feature is done, launch the dev app for QA without being asked.**
   Benedict reviews every UI change in the running app himself. Start

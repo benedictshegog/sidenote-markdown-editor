@@ -40,10 +40,19 @@ Sidenote rather than being turned away by it: a different bundle identifier
 (the single-instance check keys on it), the name "Sidenote Dev", an orange
 icon, and a "Dev" tag in the corner of every window. A debug build also
 listens on port 47294 rather than 47293, and a debug CLI dials the same, so
-`target/debug/sidenote` talks to the dev app and the installed `sidenote` to
+the debug CLI (`debug/sidenote` under the shared target directory, see below) talks to the dev app and the installed `sidenote` to
 the installed app. `SIDENOTE_PORT` overrides either side. Both apps share
 `~/.sidenote`, so the dev app shows the same documents; only the listeners
 file is split by port.
+
+Builds share one cache. `scripts/cargo-env.sh` (sourced by `build-cli.sh`,
+`pnpm dev:app`, `release.sh` and the e2e test) points Cargo at
+`~/Library/Caches/sidenote/target` for every checkout and worktree, so a new
+worktree compiles only the Sidenote crates, and uses sccache as the compiler
+wrapper when it is installed (`brew install sccache`). Set `CARGO_TARGET_DIR`
+yourself to opt out. Bare `cargo` commands run from a shell do not read the
+script, so `cargo test -p sidenote-core` on its own still builds under the
+checkout's `target/`; source the script first to share the cache.
 
 Tests:
 
@@ -97,7 +106,7 @@ clones it).
 cd app && ./scripts/build-cli.sh release && pnpm tauri build
 ```
 
-The `.app` and `.dmg` land in `target/release/bundle/`. The `.dmg` is the whole distribution: app, `sidenote` CLI (sidecar inside the bundle) and the Claude Code skill (embedded). Copy `Sidenote.app` to `/Applications` (`ditto target/release/bundle/macos/Sidenote.app /Applications/Sidenote.app`). On first launch the app offers to install the Claude Code integration: a symlink `/usr/local/bin/sidenote` to the bundled binary (admin prompt when needed) and the skill in `~/.claude/skills/`. Sidenote menu > Install Claude Code Integration… repeats it. Manual equivalents: `sudo ln -sf /Applications/Sidenote.app/Contents/MacOS/sidenote /usr/local/bin/sidenote` and `sidenote install-skill`.
+The `.app` and `.dmg` land in `release/bundle/` under the shared target directory. The `.dmg` is the whole distribution: app, `sidenote` CLI (sidecar inside the bundle) and the Claude Code skill (embedded). Copy `Sidenote.app` to `/Applications` (`ditto target/release/bundle/macos/Sidenote.app /Applications/Sidenote.app`). On first launch the app offers to install the Claude Code integration: a symlink `/usr/local/bin/sidenote` to the bundled binary (admin prompt when needed) and the skill in `~/.claude/skills/`. Sidenote menu > Install Claude Code Integration… repeats it. Manual equivalents: `sudo ln -sf /Applications/Sidenote.app/Contents/MacOS/sidenote /usr/local/bin/sidenote` and `sidenote install-skill`.
 
 The app icon is generated from `app/app-icon.png` with `pnpm tauri icon app-icon.png` (run inside `app/`; delete the `android/` and `ios/` output).
 
