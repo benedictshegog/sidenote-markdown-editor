@@ -1922,7 +1922,9 @@ button {
    an internal column boundary the block gets `data-col-resize`, which turns
    the cursor and hides Crepe's own column and row handles (`.handle`, the
    blue bars with their + buttons) so two affordances never share the same
-   pixels. During a drag the border being moved is the accent colour. */
+   pixels. During a drag an overlay line in the accent colour sits on the
+   border being moved; it lives in the block wrapper, outside the editable
+   table, so no transaction is needed to show it. */
 .sidenote-editor .milkdown .milkdown-table-block[data-col-resize],
 .sidenote-editor .milkdown .milkdown-table-block[data-col-resize] * {
   cursor: col-resize;
@@ -1930,9 +1932,12 @@ button {
 .sidenote-editor .milkdown .milkdown-table-block[data-col-resize] .handle {
   visibility: hidden;
 }
-.sidenote-editor .milkdown .ProseMirror td.sidenote-col-resizing,
-.sidenote-editor .milkdown .ProseMirror th.sidenote-col-resizing {
-  border-right-color: var(--accent);
+.sidenote-editor .milkdown .milkdown-table-block .sidenote-col-line {
+  position: absolute;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 60;
 }
 html.sidenote-col-resizing,
 html.sidenote-col-resizing * {

@@ -26,14 +26,11 @@
 
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import type { EditorState, Transaction } from "@milkdown/kit/prose/state";
-import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import type { Node as PMNode } from "@milkdown/kit/prose/model";
 import { cellAround, TableMap } from "@milkdown/kit/prose/tables";
 
-export const tableResizeKey = new PluginKey<DecorationSet>(
-  "sidenote-table-resize",
-);
+export const tableResizeKey = new PluginKey("sidenote-table-resize");
 
 /** Pointer distance from a cell edge, in px, that counts as the boundary. */
 const EDGE = 6;
@@ -165,30 +162,28 @@ function setColumnWidth(
   }
 }
 
-/** Node decorations marking the right border of every cell in `col`. */
-function columnDecorations(
-  doc: PMNode,
-  tablePos: number,
-  col: number,
-): DecorationSet {
-  const table = doc.nodeAt(tablePos);
-  if (!table || table.type.spec.tableRole !== "table") return DecorationSet.empty;
-  const map = TableMap.get(table);
-  const start = tablePos + 1;
-  const decos: Decoration[] = [];
-  for (let row = 0; row < map.height; row++) {
-    const idx = row * map.width + col;
-    if (row && map.map[idx] === map.map[idx - map.width]) continue;
-    const pos = map.map[idx];
-    const cell = table.nodeAt(pos);
-    if (!cell) continue;
-    decos.push(
-      Decoration.node(start + pos, start + pos + cell.nodeSize, {
-        class: "sidenote-col-resizing",
-      }),
-    );
-  }
-  return DecorationSet.create(doc, decos);
+/**
+ * The line drawn on the boundary during a drag. It is a plain element in the
+ * block wrapper, outside ProseMirror's content, on purpose: a decoration on
+ * the cells would be a transaction, and Crepe's table node view answers any
+ * update that leaves the node unchanged with `false`, which makes ProseMirror
+ * destroy and rebuild the whole table element mid-drag.
+ */
+function placeLine(line: HTMLElement, block: HTMLElement, cell: HTMLElement) {
+  const b = block.getBoundingClientRect();
+  const table = cell.closest("table")?.getBoundingClientRect();
+  if (!table) return;
+  const c = cell.getBoundingClientRect();
+  line.style.left = `${c.right - b.left - 1}px`;
+  line.style.top = `${table.top - b.top}px`;
+  line.style.height = `${table.height}px`;
+}
+
+/** The first-row cell of column `col`, whose right edge is the boundary. */
+function boundaryCell(tableEl: HTMLTableElement, col: number): HTMLElement | null {
+  const row = tableEl.tBodies[0]?.rows[0];
+  const cell = row?.cells[col];
+  return cell instanceof HTMLElement ? cell : null;
 }
 
 interface Drag {
@@ -202,6 +197,7 @@ interface Drag {
   /** Every column's width when the drag began, seeded if none was set. */
   startWidths: number[];
   widths: number[];
+  line: HTMLElement;
 }
 
 interface Zone {
@@ -376,6 +372,9 @@ class ResizeView {
       ? (attrs as number[])
       : renderedWidths(tableEl);
     if (startWidths.length !== TableMap.get(table).width) return;
+    const line = document.createElement("div");
+    line.className = "sidenote-col-line";
+    zone.block.appendChild(line);
     this.drag = {
       tablePos: zone.tablePos,
       tableEl,
@@ -384,16 +383,14 @@ class ResizeView {
       startX: e.clientX,
       startWidths,
       widths: startWidths.slice(),
+      line,
     };
+    const cell = boundaryCell(tableEl, zone.col);
+    if (cell) placeLine(line, zone.block, cell);
     document.documentElement.classList.add("sidenote-col-resizing");
     window.addEventListener("pointermove", this.onDragMove);
     window.addEventListener("pointerup", this.onDragEnd);
     window.addEventListener("pointercancel", this.onDragCancel);
-    this.view.dispatch(
-      this.view.state.tr.setMeta(tableResizeKey, {
-        decos: columnDecorations(this.view.state.doc, zone.tablePos, zone.col),
-      }),
-    );
   };
 
   private onDragMove = (e: PointerEvent) => {
@@ -408,6 +405,8 @@ class ResizeView {
     d.widths[d.col] = left;
     d.widths[d.col + 1] = pair - left;
     paint(d.tableEl, d.widths);
+    const cell = boundaryCell(d.tableEl, d.col);
+    if (cell) placeLine(d.line, d.block, cell);
   };
 
   private onDragEnd = () => this.endDrag(true);
@@ -422,8 +421,9 @@ class ResizeView {
     window.removeEventListener("pointerup", this.onDragEnd);
     window.removeEventListener("pointercancel", this.onDragCancel);
     this.leaveZone();
+    d.line.remove();
     const { state } = this.view;
-    const tr = state.tr.setMeta(tableResizeKey, { decos: DecorationSet.empty });
+    const tr = state.tr;
     const table = state.doc.nodeAt(d.tablePos);
     const map = table && table.type.spec.tableRole === "table" ? TableMap.get(table) : null;
     if (commit && table && map && map.width === d.widths.length) {
@@ -444,22 +444,9 @@ class ResizeView {
  * `docPath` is read when needed, so the plugin follows the document the
  * editor shows; an empty path (a draft with no file yet) turns persistence off.
  */
-export function tableResizePlugin(docPath: () => string): Plugin<DecorationSet> {
-  return new Plugin<DecorationSet>({
+export function tableResizePlugin(docPath: () => string): Plugin {
+  return new Plugin({
     key: tableResizeKey,
-    state: {
-      init: () => DecorationSet.empty,
-      apply(tr, value) {
-        const meta = tr.getMeta(tableResizeKey) as
-          | { decos: DecorationSet }
-          | undefined;
-        if (meta) return meta.decos;
-        return tr.docChanged ? value.map(tr.mapping, tr.doc) : value;
-      },
-    },
-    props: {
-      decorations: (state) => tableResizeKey.getState(state),
-    },
     view: (view) => new ResizeView(view, docPath),
   });
 }
