@@ -10,12 +10,7 @@ import type { Ctx } from "@milkdown/kit/ctx";
 import { remarkGFMPlugin } from "@milkdown/kit/preset/gfm";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
 import type { EditorView } from "@milkdown/kit/prose/view";
-import {
-  DOMSerializer,
-  Slice,
-  type Mark,
-  type NodeType,
-} from "@milkdown/kit/prose/model";
+import { Slice, type Mark, type NodeType } from "@milkdown/kit/prose/model";
 import { setBlockType } from "@milkdown/kit/prose/commands";
 import { redo, undo } from "@milkdown/kit/prose/history";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
@@ -36,6 +31,7 @@ import {
   type SuggestionRange,
 } from "./suggestions";
 import { findKey, findPlugin, setFindMeta } from "./find";
+import { ClipboardSerializer, clipboardPlugin } from "./clipboard";
 import { TextMap } from "./textmap";
 import { normaliseMarkdown } from "./normalise";
 import { ImageResolver } from "./images";
@@ -405,7 +401,8 @@ export const Editor = forwardRef<EditorHandle, Props>(
         .use(commentMark)
         .use($prose(() => presencePlugin))
         .use($prose(() => suggestionPlugin))
-        .use($prose(() => findPlugin));
+        .use($prose(() => findPlugin))
+        .use($prose(clipboardPlugin));
 
       crepe.on((api) => {
         api.markdownUpdated((_ctx, md, prev) => {
@@ -574,16 +571,12 @@ export const Editor = forwardRef<EditorHandle, Props>(
 
       getHtml: () =>
         withView((view) => {
-          const serializer = DOMSerializer.fromSchema(view.state.schema);
-          const fragment = serializer.serializeFragment(view.state.doc.content);
           const holder = document.createElement("div");
-          holder.appendChild(fragment);
-          holder.querySelectorAll("[data-comment-id]").forEach((el) => {
-            const parent = el.parentNode;
-            if (!parent) return;
-            while (el.firstChild) parent.insertBefore(el.firstChild, el);
-            parent.removeChild(el);
-          });
+          ClipboardSerializer.forSchema(view.state.schema).serializeFragment(
+            view.state.doc.content,
+            undefined,
+            holder,
+          );
           return holder.innerHTML;
         }) ?? "",
 
