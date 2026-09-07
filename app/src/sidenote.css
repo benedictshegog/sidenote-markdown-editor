@@ -1918,34 +1918,21 @@ button {
   font-weight: 600;
   background: var(--surface);
 }
-/* Column resize handle (editor/tableResize.ts). It is placed in the table
-   block, outside the editable tbody, and straddles the column boundary. */
-.sidenote-editor .milkdown .milkdown-table-block {
-  position: relative;
-}
-.sidenote-editor .milkdown .sidenote-col-resize {
-  position: absolute;
-  width: 9px;
-  margin-left: -5px;
+/* Column resizing (editor/tableResize.ts). Nothing is drawn on hover: near
+   an internal column boundary the block gets `data-col-resize`, which turns
+   the cursor and hides Crepe's own column and row handles (`.handle`, the
+   blue bars with their + buttons) so two affordances never share the same
+   pixels. During a drag the border being moved is the accent colour. */
+.sidenote-editor .milkdown .milkdown-table-block[data-col-resize],
+.sidenote-editor .milkdown .milkdown-table-block[data-col-resize] * {
   cursor: col-resize;
-  z-index: 5;
-  -webkit-user-select: none;
-  user-select: none;
 }
-.sidenote-editor .milkdown .sidenote-col-resize::after {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  opacity: 0.55;
+.sidenote-editor .milkdown .milkdown-table-block[data-col-resize] .handle {
+  visibility: hidden;
 }
-.sidenote-editor .milkdown .sidenote-col-resize:hover::after,
-.sidenote-editor .milkdown .sidenote-col-resize.dragging::after {
-  opacity: 1;
+.sidenote-editor .milkdown .ProseMirror td.sidenote-col-resizing,
+.sidenote-editor .milkdown .ProseMirror th.sidenote-col-resizing {
+  border-right-color: var(--accent);
 }
 html.sidenote-col-resizing,
 html.sidenote-col-resizing * {
