@@ -1918,6 +1918,39 @@ button {
   font-weight: 600;
   background: var(--surface);
 }
+/* Column resize handle (editor/tableResize.ts). It is placed in the table
+   block, outside the editable tbody, and straddles the column boundary. */
+.sidenote-editor .milkdown .milkdown-table-block {
+  position: relative;
+}
+.sidenote-editor .milkdown .sidenote-col-resize {
+  position: absolute;
+  width: 9px;
+  margin-left: -5px;
+  cursor: col-resize;
+  z-index: 5;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.sidenote-editor .milkdown .sidenote-col-resize::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+.sidenote-editor .milkdown .sidenote-col-resize:hover::after,
+.sidenote-editor .milkdown .sidenote-col-resize.dragging::after {
+  opacity: 1;
+}
+html.sidenote-col-resizing,
+html.sidenote-col-resizing * {
+  cursor: col-resize !important;
+}
 
 /* code blocks (CodeMirror feature) */
 .sidenote-editor .milkdown .milkdown-code-block {

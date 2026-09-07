@@ -32,6 +32,7 @@ import {
 } from "./suggestions";
 import { findKey, findPlugin, setFindMeta } from "./find";
 import { ClipboardSerializer, clipboardPlugin } from "./clipboard";
+import { tableResizePlugin } from "./tableResize";
 import { TextMap } from "./textmap";
 import { normaliseMarkdown } from "./normalise";
 import { ImageResolver } from "./images";
@@ -402,7 +403,10 @@ export const Editor = forwardRef<EditorHandle, Props>(
         .use($prose(() => presencePlugin))
         .use($prose(() => suggestionPlugin))
         .use($prose(() => findPlugin))
-        .use($prose(clipboardPlugin));
+        .use($prose(clipboardPlugin))
+        // Column widths are a viewing affordance: they work under the lock
+        // and never reach the markdown. See tableResize.ts for where they go.
+        .use($prose(() => tableResizePlugin(() => propsRef.current.docPath)));
 
       crepe.on((api) => {
         api.markdownUpdated((_ctx, md, prev) => {

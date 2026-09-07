@@ -103,7 +103,7 @@ The app icon is generated from `app/app-icon.png` with `pnpm tauri icon app-icon
 
 Sharing without a Developer ID: a source build has no quarantine flag; the unsigned `.dmg` needs System Settings > Privacy & Security > Open Anyway once (or `xattr -dr com.apple.quarantine /Applications/Sidenote.app`); the Homebrew cask strips the flag in a `postflight` step, so brew users see no prompt. Signing and notarisation (`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` at build time) remove the friction and enable the updater.
 
-Preferences (appearance, typeface) are stored in the webview's localStorage under `sidenote.*`; Settings is Cmd+, in the app.
+Preferences (appearance, typeface) are stored in the webview's localStorage under `sidenote.*`; Settings is Cmd+, in the app. Table column widths (drag a column boundary in the editor) live there too, under `sidenote.tableWidths:<path>`, keyed by the table's header row: GFM has no syntax for them, so the markdown file never changes and they are put back when the document is opened again.
 
 Diagnostics: JS errors and the boot marker go to `~/.sidenote/ui.log`. The dev app forwards Rust logs to the terminal.
 
