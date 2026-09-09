@@ -11,7 +11,7 @@ use sidenote_core::suggest::{Seg, Suggestion};
 use sidenote_core::{DocEntry, Selector, StateFile, Store, Thread, ThreadStatus, ThreadsFile};
 
 use crate::state::AppState;
-use crate::{menu, watch, ws};
+use crate::{menu, remote, share, watch, ws};
 
 type S<'a> = State<'a, Arc<AppState>>;
 
@@ -1310,4 +1310,41 @@ mod tests {
         let other: std::collections::HashSet<String> = ["/quiet.md".to_string()].into();
         assert_eq!(badge_total(&counts, &other), 0);
     }
+}
+
+// ---- local network sharing (dev builds only) ------------------------------
+
+/// Serve the document to devices on the local network; returns the URLs.
+#[tauri::command]
+pub fn share_doc(app: AppHandle, state: S, path: String) -> Result<share::ShareInfo, String> {
+    share::share(&app, state.inner(), &path)
+}
+
+#[tauri::command]
+pub fn unshare_doc(state: S, path: String) -> Result<(), String> {
+    share::unshare(state.inner(), &path)
+}
+
+#[tauri::command]
+pub fn share_status(state: S, path: String) -> Result<Option<share::ShareInfo>, String> {
+    share::status(state.inner(), &path)
+}
+
+/// Open a document another Sidenote shares, by its link. Pairs first when
+/// the other side does not know this machine yet.
+#[tauri::command]
+pub async fn connect_remote(state: S<'_>, url: String) -> Result<DocEntry, String> {
+    remote::connect(state.inner(), &url).await
+}
+
+/// Run a document command on the Sidenote that shares the document the
+/// arguments name. `ipc.ts` sends every call for a remote document here.
+#[tauri::command]
+pub async fn remote_call(app: AppHandle, state: S<'_>, cmd: String, args: serde_json::Value) -> Result<serde_json::Value, String> {
+    remote::remote_call(&app, state.inner(), &cmd, args).await
+}
+
+#[tauri::command]
+pub fn network_shares(state: S) -> Vec<remote::NetworkShare> {
+    remote::network_shares(state.inner())
 }

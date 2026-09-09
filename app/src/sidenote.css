@@ -2500,3 +2500,21 @@ html.sidenote-col-resizing * {
   line-height: 1.5;
   margin: 0 0 10px;
 }
+
+/* Open from Network (dev builds) */
+.net-list { list-style: none; margin: 0; padding: 0; }
+.net-item {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none;
+  color: var(--fg); font: inherit; text-align: left; cursor: default;
+}
+.net-item:hover { background: var(--surface); }
+.net-item:disabled { opacity: .5; }
+.net-host, .net-empty, .net-status { color: var(--fg-2); font-size: 12px; }
+.net-form { display: flex; gap: 8px; }
+.net-input {
+  flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--hairline); border-radius: 6px;
+  background: var(--bg); color: var(--fg); font: inherit; font-size: 13px;
+}
+.net-status, .net-error { margin-top: 8px; font-size: 12px; }
+.net-error { color: #d0342c; }

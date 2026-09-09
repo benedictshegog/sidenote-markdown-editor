@@ -172,3 +172,23 @@ export interface AppInfo {
   /** The WebSocket port the CLI must dial to reach this app. */
   port: number
 }
+
+/** A document served over the local network (dev builds only). */
+export interface ShareInfo {
+  /** The URL to hand out: the machine's LAN address. */
+  url: string
+  /** Every URL the page answers on: LAN address, then `<host>.local`. */
+  urls: string[]
+  token: string
+  port: number
+}
+
+/** A share another Sidenote advertises over Bonjour (dev builds only). */
+export interface NetworkShare {
+  fullname: string
+  title: string
+  host: string
+  port: number
+  token: string
+  url: string
+}

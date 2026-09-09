@@ -45,6 +45,22 @@ the installed app. `SIDENOTE_PORT` overrides either side. Both apps share
 `~/.sidenote`, so the dev app shows the same documents; only the listeners
 file is split by port.
 
+A dev build can also serve a document to other devices on the same network:
+Document > Share on Local Network copies a URL such as
+`http://192.168.1.20:47394/d/<token>` (and Copy Share Link adds the
+`<host>.local` form). The page is read-only, styled like the editor, and polls
+the file every two seconds, so edits show up on a phone as they land. The
+server binds the WebSocket port plus 100, answers `GET` only, renders raw HTML
+in the markdown as text, and does not exist in a release build (no menu item,
+the commands refuse). A second Mac running a dev Sidenote opens the same document as a tab: File >
+Open from Network lists what Bonjour has found (`_sidenote._tcp`) and takes a
+pasted link. The first time, the sharing Mac shows an Allow dialog; after that
+the peer is remembered in `~/.sidenote/peers.json`. Every call the tab makes
+(read, autosave, comments, replies, lock, suggestions, versions) is posted to
+the sharing Mac and answered from its store, so the file, the review data and
+the Claude session stay there; the tab polls once a second for changes. It is
+an experiment; `app/src-tauri/src/share.rs` and `remote.rs` say how it works.
+
 Builds share one cache. `scripts/cargo-env.sh` (sourced by `build-cli.sh`,
 `pnpm dev:app`, `release.sh` and the e2e test) points Cargo at
 `~/Library/Caches/sidenote/target` for every checkout and worktree, so a new

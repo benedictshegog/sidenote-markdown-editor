@@ -59,6 +59,17 @@ pub struct AppState {
     /// Windows a Quit is still waiting on; `None` when no quit is in progress.
     /// See `commands::request_quit`.
     pub quit_pending: Mutex<Option<HashSet<String>>>,
+    /// Documents served over the local network (dev builds): token -> path.
+    pub shares: Mutex<HashMap<String, String>>,
+    /// Whether the share server has been bound. See `share::ensure_server`.
+    pub share_server: Mutex<bool>,
+    /// Bonjour daemon, shared by advertising shares and browsing for them.
+    pub mdns: Mutex<Option<mdns_sd::ServiceDaemon>>,
+    pub browsing: Mutex<bool>,
+    /// Shares seen on the network, by Bonjour full name.
+    pub discovered: Mutex<HashMap<String, crate::remote::NetworkShare>>,
+    /// Documents opened from another Sidenote, by their `sidenote://` path.
+    pub remotes: Mutex<HashMap<String, crate::remote::RemoteDoc>>,
 }
 
 impl AppState {
@@ -75,6 +86,12 @@ impl AppState {
             pending_opens: Mutex::new(Vec::new()),
             ui_ready: Mutex::new(false),
             quit_pending: Mutex::new(None),
+            shares: Mutex::new(HashMap::new()),
+            share_server: Mutex::new(false),
+            mdns: Mutex::new(None),
+            browsing: Mutex::new(false),
+            discovered: Mutex::new(HashMap::new()),
+            remotes: Mutex::new(HashMap::new()),
         }
     }
 }

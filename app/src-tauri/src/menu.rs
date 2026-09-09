@@ -110,6 +110,10 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &MenuItem::with_id(app, "reveal_doc", "Reveal in Finder", true, Some("CmdOrCtrl+Shift+R"))?,
         ],
     )?;
+    if cfg!(debug_assertions) {
+        // Beside Open: a document another Sidenote shares. See `remote.rs`.
+        file_menu.insert(&MenuItem::with_id(app, "open_network", "Open from Network…", true, Some("CmdOrCtrl+Shift+O"))?, 3)?;
+    }
 
     let edit_menu = Submenu::with_items(
         app,
@@ -214,6 +218,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &MenuItem::with_id(app, "copy_path", "Copy Path", true, Some("CmdOrCtrl+Shift+C"))?,
         ],
     )?;
+    // An experiment that only a dev build carries: serve the document to
+    // other devices on the same network. See `share.rs`.
+    if cfg!(debug_assertions) {
+        doc_menu.append(&PredefinedMenuItem::separator(app)?)?;
+        doc_menu.append(&CheckMenuItem::with_id(app, "toggle_share", "Share on Local Network", true, false, None::<&str>)?)?;
+        doc_menu.append(&MenuItem::with_id(app, "copy_share_link", "Copy Share Link", true, None::<&str>)?)?;
+    }
 
     let window_menu = Submenu::with_items(
         app,

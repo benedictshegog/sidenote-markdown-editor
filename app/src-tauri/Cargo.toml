@@ -29,3 +29,7 @@ window-vibrancy = "0.8.0"
 tauri-plugin-dialog = "2.7.2"
 tauri-plugin-single-instance = "2.4.3"
 core-foundation = "0.10"
+# The `html` feature is off in the workspace default (core only needs the parser).
+pulldown-cmark = { workspace = true, features = ["html"] }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+mdns-sd = "0.21.3"

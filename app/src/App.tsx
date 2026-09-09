@@ -6,7 +6,8 @@ import { ask, message, open, save } from '@tauri-apps/plugin-dialog'
 
 import { DocumentView, type DocumentActions } from './DocumentView'
 import { DraftView, UNTITLED, type DraftActions } from './DraftView'
-import { ipc } from './ipc'
+import { ipc, isRemotePath, markRemote } from './ipc'
+import { Network } from './Network'
 import { applyTypeface, loadPreferences, Settings } from './Settings'
 import { Welcome } from './Welcome'
 import { Asterisk, Recents } from './Recents'
@@ -50,6 +51,7 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [dropping, setDropping] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [networkOpen, setNetworkOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [welcome, setWelcome] = useState<{ needsCli: boolean; needsSkill: boolean; needsMd: boolean; intro: boolean } | null>(null)
   const [update, setUpdate] = useState<UpdateStatus | null>(null)
@@ -134,9 +136,24 @@ export default function App() {
     [refreshDocs],
   )
 
+  /** A document another Sidenote shares (dev builds): the tab is the same,
+   *  its calls go to that Mac. The path is the `sidenote://` link. */
+  const openRemote = useCallback(
+    async (url: string, at?: number) => {
+      const doc = await ipc.connectRemote(url)
+      markRemote(doc.id)
+      await openDoc(doc, at)
+    },
+    [openDoc],
+  )
+
   const openPath = useCallback(
     async (path: string, quiet = false, at?: number) => {
       try {
+        if (isRemotePath(path)) {
+          await openRemote(path, at)
+          return true
+        }
         const doc = await ipc.registerDoc(path)
         await openDoc(doc, at)
         return true
@@ -145,7 +162,7 @@ export default function App() {
         return false
       }
     },
-    [openDoc],
+    [openDoc, openRemote],
   )
 
   const openFileDialog = useCallback(async () => {
@@ -492,6 +509,9 @@ export default function App() {
         case 'settings':
           setSettingsOpen(true)
           return
+        case 'open_network':
+          setNetworkOpen(true)
+          return
         case 'check_updates':
           await checkUpdate(true)
           return
@@ -728,6 +748,7 @@ export default function App() {
         </div>
       )}
 
+      {networkOpen && <Network onOpen={(u) => openRemote(u)} onClose={() => setNetworkOpen(false)} />}
       {settingsOpen && (
         <Settings
           onClose={() => setSettingsOpen(false)}

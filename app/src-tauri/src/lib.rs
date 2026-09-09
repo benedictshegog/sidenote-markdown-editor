@@ -33,6 +33,8 @@
 
 mod commands;
 mod menu;
+mod remote;
+mod share;
 mod state;
 mod update;
 mod watch;
@@ -331,6 +333,12 @@ pub fn run() {
             commands::install_skill,
             commands::default_md_handler,
             commands::set_default_md_handler,
+            commands::share_doc,
+            commands::unshare_doc,
+            commands::share_status,
+            commands::connect_remote,
+            commands::remote_call,
+            commands::network_shares,
             update::update_check,
             update::update_run,
         ])
@@ -363,6 +371,7 @@ pub fn run() {
             });
 
             ws::start(handle.clone());
+            remote::start_browse(&handle.state::<Arc<AppState>>().inner().clone());
 
             // The badge counts every document, so it needs a watcher of its
             // own and a count at startup — replies can land while the app is

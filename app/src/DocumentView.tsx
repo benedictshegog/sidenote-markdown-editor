@@ -17,6 +17,7 @@ import {
   isUnread,
   type DocEntry,
   type ListenerStatus,
+  type ShareInfo,
   type StateView,
   type Suggestion,
   type Thread,
@@ -174,6 +175,8 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     const [tick, setTick] = useState(0);
     const [presenceEpoch, setPresenceEpoch] = useState(0);
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+    // Dev builds only: the document is served on the local network.
+    const [share, setShare] = useState<ShareInfo | null>(null);
     const [selectedSug, setSelectedSug] = useState<string | null>(null);
     // Bumped when the document may have reflowed, so the margin re-measures.
     const [revision, setRevision] = useState(0);
@@ -770,6 +773,44 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
       void ipc.setMenuChecked("toggle_suggesting", suggesting);
     }, [active, loaded, suggesting]);
 
+    // The share tick, the same way. A release build refuses the command, so
+    // the status stays null there and the (absent) item is never ticked.
+    useEffect(() => {
+      if (!loaded) return;
+      ipc.shareStatus(loaded.doc.path).then(setShare, () => setShare(null));
+    }, [loaded]);
+    useEffect(() => {
+      if (!active || !loaded) return;
+      void ipc.setMenuChecked("toggle_share", share !== null);
+    }, [active, loaded, share]);
+
+    const toggleShare = useCallback(async () => {
+      const path = docRef.current.path;
+      try {
+        if (share) {
+          await ipc.unshareDoc(path);
+          setShare(null);
+          onToast("No longer shared on the local network.");
+          return;
+        }
+        const info = await ipc.shareDoc(path);
+        setShare(info);
+        await navigator.clipboard.writeText(info.url);
+        onToast(`Sharing at ${info.url} (link copied).`);
+      } catch (e) {
+        onToast(`Share failed: ${e}`);
+      }
+    }, [share, onToast]);
+
+    const copyShareLink = useCallback(async () => {
+      if (!share) {
+        onToast("Not shared. Document > Share on Local Network first.");
+        return;
+      }
+      await navigator.clipboard.writeText(share.urls.join("\n"));
+      onToast(share.urls.length > 1 ? "Share links copied (one per line)." : "Share link copied.");
+    }, [share, onToast]);
+
     const toggleSuggesting = useCallback(async () => {
       const cur = loadedRef.current;
       if (!cur) return;
@@ -1186,14 +1227,22 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             case "reject_all":
               if (cur && suggestions.length) await decideAll(false);
               return true;
+            case "toggle_share":
+              if (cur) await toggleShare();
+              return true;
+            case "copy_share_link":
+              await copyShareLink();
+              return true;
           }
           return false;
         },
       }),
       [
         copyAs,
+        copyShareLink,
         decideAll,
         suggestions.length,
+        toggleShare,
         toggleSuggesting,
         find,
         flushNow,
