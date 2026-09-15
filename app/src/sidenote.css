@@ -1944,18 +1944,18 @@ html.sidenote-col-resizing * {
   cursor: col-resize !important;
 }
 
-/* footnotes (editor/footnotes.ts). A reference is a small accent number that
-   does not open up the line it sits in: line-height 0 keeps the leading even
-   in dense, heavily cited prose and in table cells. Definitions are notes, not
+/* footnotes (editor/footnotes.ts). A reference is a small number in the
+   colour and weight of the text around it, so a heavily cited paragraph still
+   reads as prose; the hover tint says it is clickable. line-height 0 keeps
+   the leading even in dense prose and in table cells. Definitions are notes, not
    body text: a compact numbered list in the secondary colour, number in a
    right-aligned gutter so 9 and 46 line up. */
 .sidenote-editor .milkdown .ProseMirror sup[data-type='footnote_reference'] {
   font-size: 0.7em;
-  font-weight: 550;
   font-variant-numeric: tabular-nums;
   line-height: 0;
   vertical-align: 0.55em;
-  color: var(--accent);
+  color: inherit;
   padding: 0 0.12em;
   margin-left: 0.04em;
   border-radius: 3px;
