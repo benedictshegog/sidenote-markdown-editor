@@ -2011,7 +2011,8 @@ html.sidenote-col-resizing * {
 }
 /* The note previewed under a reference. It sits on document.body, outside
    .sidenote-editor, so it is styled from the app tokens directly. Opaque
-   surface and hairline, like Crepe's link preview. */
+   surface. --bg-elev is too close to --bg in dark mode to read as a layer,
+   so it takes --card, a firmer border and a shadow. */
 .sidenote-footnote-preview {
   position: fixed;
   z-index: 1000;
@@ -2019,15 +2020,34 @@ html.sidenote-col-resizing * {
   gap: 0.5em;
   max-width: min(420px, calc(100vw - 24px));
   padding: 8px 12px;
-  background: var(--bg-elev);
+  background: var(--card);
   border: 1px solid var(--hairline-strong);
   border-radius: 8px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.18);
   font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: -0.004em;
   color: var(--fg);
   animation: fade 120ms var(--ease);
+}
+/* display: flex above would otherwise beat the UA rule for [hidden]. */
+.sidenote-footnote-preview[hidden] {
+  display: none;
+}
+:root[data-theme='dark'] .sidenote-footnote-preview {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 10px 28px rgba(0, 0, 0, 0.55);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sidenote-footnote-preview {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 10px 28px rgba(0, 0, 0, 0.55);
+  }
 }
 .sidenote-footnote-preview-label {
   flex: none;
