@@ -1944,6 +1944,90 @@ html.sidenote-col-resizing * {
   cursor: col-resize !important;
 }
 
+/* footnotes (editor/footnotes.ts). A reference is a small accent number that
+   does not open up the line it sits in: line-height 0 keeps the leading even
+   in dense, heavily cited prose and in table cells. Definitions are notes, not
+   body text: a compact numbered list in the secondary colour, number in a
+   right-aligned gutter so 9 and 46 line up. */
+.sidenote-editor .milkdown .ProseMirror sup[data-type='footnote_reference'] {
+  font-size: 0.7em;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  line-height: 0;
+  vertical-align: 0.55em;
+  color: var(--accent);
+  padding: 0 0.12em;
+  margin-left: 0.04em;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.sidenote-editor .milkdown .ProseMirror sup[data-type='footnote_reference']:hover {
+  background: var(--accent-tint);
+}
+.sidenote-editor .milkdown .ProseMirror sup.sidenote-footnote-ref.is-missing {
+  color: var(--fg-3);
+  cursor: default;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1fr);
+  column-gap: 0.55em;
+  margin: 0 0 0.3em;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.004em;
+  color: var(--fg-2);
+  border-radius: 4px;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition']:has(+ :not(dl)) {
+  margin-bottom: 1.2em;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dt {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--fg-3);
+  cursor: pointer;
+  user-select: none;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dt::after {
+  content: '.';
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dt:hover {
+  color: var(--accent);
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dd {
+  margin: 0;
+  min-width: 0;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dd p {
+  margin: 0;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] > dd > * + * {
+  margin-top: 0.3em;
+}
+.sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] code {
+  font-size: 0.92em;
+}
+/* Where a click on a reference or a note's number lands. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-footnote-flash {
+  animation: sidenote-footnote-flash 1600ms var(--ease) 1;
+}
+@keyframes sidenote-footnote-flash {
+  0%,
+  40% {
+    background: var(--accent-tint-strong);
+  }
+  100% {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidenote-editor .milkdown .ProseMirror .sidenote-footnote-flash {
+    animation: none;
+  }
+}
+
 /* code blocks (CodeMirror feature) */
 .sidenote-editor .milkdown .milkdown-code-block {
   background: var(--surface);

@@ -33,6 +33,11 @@ import {
 import { findKey, findPlugin, setFindMeta } from "./find";
 import { ClipboardSerializer, clipboardPlugin } from "./clipboard";
 import { tableResizePlugin } from "./tableResize";
+import {
+  definedLabels,
+  footnotePlugin,
+  parseWithFootnotes,
+} from "./footnotes";
 import { TextMap } from "./textmap";
 import { normaliseMarkdown } from "./normalise";
 import { ImageResolver } from "./images";
@@ -403,6 +408,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
         .use($prose(() => presencePlugin))
         .use($prose(() => suggestionPlugin))
         .use($prose(() => findPlugin))
+        .use($prose(() => footnotePlugin))
         .use($prose(clipboardPlugin))
         // Column widths are a viewing affordance: they work under the lock
         // and never reach the markdown. See tableResize.ts for where they go.
@@ -569,7 +575,8 @@ export const Editor = forwardRef<EditorHandle, Props>(
             0,
             view.state.doc.content.size,
             "\n\n",
-            "\n",
+            // A footnote reference is a leaf too, but it is not a line break.
+            (leaf) => (leaf.type.name === "footnote_reference" ? "" : "\n"),
           ),
         ) ?? "",
 
@@ -632,7 +639,11 @@ export const Editor = forwardRef<EditorHandle, Props>(
                 carried.add(m.attrs.id as string);
             }
           });
-          const parsed = next.trim() ? ctx.get(parserCtx)(next) : null;
+          // Parsed on its own, `[^1]` would lose its definition and be saved
+          // as `\[^1]`; see footnotes.ts.
+          const parsed = next.trim()
+            ? parseWithFootnotes(next, definedLabels(doc), ctx.get(parserCtx))
+            : null;
           const tr = view.state.tr;
           // Whole blocks replaced by whole blocks keep their block types (a
           // heading stays a heading). Anything else is an inline splice: the

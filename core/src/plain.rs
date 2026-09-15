@@ -9,6 +9,10 @@ pub fn plain_text(markdown: &str) -> String {
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
     opts.insert(Options::ENABLE_TASKLISTS);
+    // The editor reads `[^1]` as a reference, which carries no text, and a
+    // `[^1]: note` definition as a block holding the note. Without this the
+    // label stays in the text here and the two sides disagree.
+    opts.insert(Options::ENABLE_FOOTNOTES);
     let parser = Parser::new_ext(markdown, opts);
 
     let mut out = String::new();
@@ -80,6 +84,20 @@ mod tests {
     fn table_cells_are_blocks() {
         let md = "| a | b |\n|---|---|\n| 1 | 2 |\n";
         assert_eq!(plain_text(md), "a\nb\n1\n2");
+    }
+
+    #[test]
+    fn footnotes_match_the_editor() {
+        let md = "A claim[^1] here.\n\n| a |\n|---|\n| cell[^1] |\n\n[^1]: The source.\n\n[^b]: Another, with `code`.\n";
+        assert_eq!(
+            plain_text(md),
+            "A claim here.\na\ncell\nThe source.\nAnother, with code."
+        );
+    }
+
+    #[test]
+    fn undefined_footnote_reference_is_text() {
+        assert_eq!(plain_text("No note[^9] here."), "No note[^9] here.");
     }
 
     #[test]
