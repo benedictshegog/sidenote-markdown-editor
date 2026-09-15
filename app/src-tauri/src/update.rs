@@ -280,6 +280,20 @@ while pgrep -f "Sidenote.app/Contents/MacOS" >/dev/null 2>&1 && [ $n -lt 60 ]; d
   n=$((n + 1))
 done
 
+# Homebrew refuses every command, cask upgrades included, until the Xcode
+# licence has been accepted, and each Xcode update re-arms that gate. The
+# gate is an xcrun probe against the selected developer directory; the
+# Command Line Tools carry no licence, so point xcrun there when they are
+# present. A cask install needs no compiler, so nothing else notices.
+if [ -x /Library/Developer/CommandLineTools/usr/bin/clang ]; then
+  DEVELOPER_DIR=/Library/Developer/CommandLineTools
+  export DEVELOPER_DIR
+fi
+
+# Where this run's output starts in the log, so a failure can quote its own
+# reason and not one from an earlier attempt.
+start=$(wc -l <"{log}")
+
 # The tap has to be refreshed first or brew still sees the old cask.
 "{brew}" update --quiet || true
 "{brew}" upgrade --cask {cask}
@@ -293,9 +307,18 @@ if [ $status -eq 0 ]; then
   echo "upgraded"
 else
   echo "upgrade failed ($status)"
+  # brew's own last "Error:" line says why; failing that, whatever it said
+  # last. Handed to AppleScript as an argument, so no quoting to get wrong.
+  reason=$(tail -n +"$((start + 1))" "{log}" | grep '^Error:' | tail -n 1 | cut -c1-300)
+  [ -n "$reason" ] || reason=$(tail -n +"$((start + 1))" "{log}" | tail -n 1 | cut -c1-300)
+  [ -n "$reason" ] || reason="Homebrew did not finish."
   # Bounded, so a dialog nobody is there to answer cannot leave this script
   # running for the rest of the session.
-  osascript -e 'display alert "Sidenote could not update" message "Homebrew did not finish. Run: brew upgrade --cask {cask}" as warning giving up after 60' >/dev/null 2>&1
+  osascript \
+    -e 'on run argv' \
+    -e 'display alert "Sidenote could not update" message (item 1 of argv & return & return & "Run: brew upgrade --cask {cask}") as warning giving up after 60' \
+    -e 'end run' \
+    "$reason" >/dev/null 2>&1
 fi
 "#,
         log = log.display(),
@@ -400,6 +423,17 @@ mod tests {
         assert!(s[..reopen].find("display alert").is_none(), "alert must not precede the reopen");
         assert!(s.contains("giving up after 60"));
         assert!(s.contains("/Users/x/.sidenote/upgrade.log"));
+        // brew's licence gate probes xcrun against the selected developer
+        // directory. The Command Line Tools have no licence, so use them —
+        // but only when they exist, or xcrun fails in a new way instead.
+        assert!(s.contains("[ -x /Library/Developer/CommandLineTools/usr/bin/clang ]"));
+        assert!(s.contains("DEVELOPER_DIR=/Library/Developer/CommandLineTools"));
+        // The alert quotes brew's reason, from this run only, and passes it
+        // as an argument rather than splicing it into AppleScript source.
+        assert!(s.contains("grep '^Error:'"));
+        assert!(s.contains("tail -n +\"$((start + 1))\""));
+        assert!(s.contains("item 1 of argv"));
+        assert!(s.contains("\"$reason\""));
         println!("{s}");
     }
 
