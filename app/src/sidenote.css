@@ -2009,6 +2009,59 @@ html.sidenote-col-resizing * {
 .sidenote-editor .milkdown .ProseMirror dl[data-type='footnote_definition'] code {
   font-size: 0.92em;
 }
+/* The note previewed under a reference. It sits on document.body, outside
+   .sidenote-editor, so it is styled from the app tokens directly. Opaque
+   surface and hairline, like Crepe's link preview. */
+.sidenote-footnote-preview {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  gap: 0.5em;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: -0.004em;
+  color: var(--fg);
+  animation: fade 120ms var(--ease);
+}
+.sidenote-footnote-preview-label {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--fg-3);
+}
+.sidenote-footnote-preview-label::after {
+  content: '.';
+}
+.sidenote-footnote-preview-body {
+  min-width: 0;
+}
+.sidenote-footnote-preview-body p {
+  margin: 0;
+}
+.sidenote-footnote-preview-body > * + * {
+  margin-top: 0.3em;
+}
+.sidenote-footnote-preview-body code {
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.sidenote-footnote-preview-body a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-underline);
+}
+.sidenote-footnote-preview.is-missing .sidenote-footnote-preview-body {
+  color: var(--fg-3);
+}
 /* Where a click on a reference or a note's number lands. */
 .sidenote-editor .milkdown .ProseMirror .sidenote-footnote-flash {
   animation: sidenote-footnote-flash 1600ms var(--ease) 1;
