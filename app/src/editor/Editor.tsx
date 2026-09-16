@@ -9,6 +9,7 @@ import {
 import type { Ctx } from "@milkdown/kit/ctx";
 import { remarkGFMPlugin } from "@milkdown/kit/preset/gfm";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
+import { trailingConfig } from "@milkdown/kit/plugin/trailing";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { Slice, type Mark, type NodeType } from "@milkdown/kit/prose/model";
 import { setBlockType } from "@milkdown/kit/prose/commands";
@@ -366,6 +367,20 @@ export const Editor = forwardRef<EditorHandle, Props>(
             resourceLink: false,
           });
           ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: false });
+          // Milkdown's own trailing-paragraph plugin inserts an empty
+          // paragraph after any doc that ends in something other than a
+          // heading or paragraph (a table, code block, list, image…). It
+          // never survives a save — remark-stringify has nothing to write
+          // for an empty paragraph, so normaliseMarkdown's trailing-newline
+          // collapse erases it — which makes it pure noise: the editor grows
+          // by a blank line at the end, on its own, for text that was never
+          // there and is never saved. `BlockEdit`'s "+" already offers a way
+          // to add a block after one that doesn't take text, so nothing is
+          // lost by turning this off.
+          ctx.set(trailingConfig.key, {
+            shouldAppend: () => false,
+            getNode: (state) => state.schema.nodes.paragraph!.create(),
+          });
           keepImageAltText(ctx);
           // Cmd-click a link to open it, the way Word, Pages and VS Code do.
           // Plain click keeps placing the caret: in an editor a link is text you
