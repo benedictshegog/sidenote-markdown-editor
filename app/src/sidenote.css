@@ -1913,6 +1913,20 @@ button {
   padding: 0.4em 0.7em;
   text-align: left;
   vertical-align: top;
+  /* A dragged column is fixed layout, so a cell can be narrower than its
+     longest token. Break the token rather than let it run into the next
+     cell. */
+  overflow-wrap: break-word;
+}
+/* An identifier or a path has no break point of its own. `anywhere` also
+   lets an auto-layout column shrink below the token, so a crowded table
+   stays inside the page. `clone` gives each broken piece its own padding
+   and rounded ends. */
+.sidenote-editor .milkdown .ProseMirror th code,
+.sidenote-editor .milkdown .ProseMirror td code {
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 .sidenote-editor .milkdown .ProseMirror th {
   font-weight: 600;
