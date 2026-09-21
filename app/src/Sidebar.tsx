@@ -22,7 +22,7 @@ export function SidebarGlyph() {
   )
 }
 
-/** Recent documents in a narrow left column, on ⌘1. Only reachable once a tab
+/** Recent documents in a narrow left column, on ⇧⌘1. Only reachable once a tab
  *  is open — with none, the start screen lists the same documents centred, so
  *  a pane there would just duplicate it. Rows stack title over path because
  *  the column is too narrow for the two to share a line. */
@@ -33,7 +33,7 @@ export function Sidebar({ docs, currentId, onOpen, onForget, onClose }: Props) {
         <span className="sidebar-title" data-tauri-drag-region>
           Recent
         </span>
-        <button type="button" className="side-toggle" title="Hide Sidebar (⌘1)" onClick={onClose}>
+        <button type="button" className="side-toggle" title="Hide Sidebar (⇧⌘1)" onClick={onClose}>
           <SidebarGlyph />
         </button>
       </div>

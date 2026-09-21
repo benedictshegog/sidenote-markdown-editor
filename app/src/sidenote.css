@@ -421,6 +421,15 @@ button {
   color: var(--fg);
   background: var(--surface-2);
 }
+/* Lifted over its neighbours while it follows the pointer. */
+.tab-dragging {
+  z-index: 1;
+  cursor: default;
+  /* The active fill over an opaque base: --surface-2 alone is a tint, and a
+     neighbour's title would show through it. */
+  background: linear-gradient(var(--surface-2), var(--surface-2)), var(--bg);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+}
 .tab-title {
   flex: 1;
   min-width: 0;
@@ -472,6 +481,41 @@ button {
   display: none;
 }
 .tab-dirty:not(:hover) .tab-dot {
+  display: inline;
+}
+/* ⌘ held: the tab's ⌘-number takes the close button's slot, whatever the
+   slot was showing. */
+.tab-key {
+  display: none;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Drawn as a key cap in the text colour, so it reads on active and inactive
+   tabs alike. */
+.tab.tab-keyed .tab-close {
+  opacity: 1;
+  color: var(--fg);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  animation: tab-key-in 260ms var(--ease);
+}
+@keyframes tab-key-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab.tab-keyed .tab-close {
+    animation: none;
+  }
+}
+/* .tab raises these past the draft rules above, which also switch the dot. */
+.tab.tab-keyed .tab-x,
+.tab.tab-keyed .tab-dot {
+  display: none;
+}
+.tab-keyed .tab-key {
   display: inline;
 }
 

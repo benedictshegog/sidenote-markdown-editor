@@ -1435,7 +1435,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             <button
               type="button"
               className={`pill-btn ${panelVisible && panelMode === "versions" ? "is-on" : ""}`}
-              title="Versions (⌘3)"
+              title="Versions"
               onClick={toggleVersions}
             >
               <svg
@@ -1452,7 +1452,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             <button
               type="button"
               className={`pill-btn ${panelVisible && panelMode === "threads" ? "is-on" : ""}`}
-              title={`${panelVisible && panelMode === "threads" ? "Hide" : "Show"} comments (⌘2)`}
+              title={`${panelVisible && panelMode === "threads" ? "Hide" : "Show"} comments (⇧⌘2)`}
               onClick={toggleThreads}
             >
               <svg

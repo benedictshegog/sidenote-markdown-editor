@@ -20,7 +20,7 @@ export function shortPath(p: string, max = 34): string {
 }
 
 /** Recently reviewed documents, centred under the Open button on the start
- *  screen. Once a tab is open the sidebar (⌘1) carries the same list. */
+ *  screen. Once a tab is open the sidebar (⇧⌘1) carries the same list. */
 /** Sidenote's asterisk. Drawn rather than typed: as a character its ink sits
  *  in the top third of the em box, so it cannot be centred without guessing at
  *  the metrics of whichever typeface is selected. */

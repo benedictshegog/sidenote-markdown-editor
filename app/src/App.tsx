@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -320,17 +320,154 @@ export default function App() {
     setActiveId(list[n].id)
   }, [])
 
-  // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs (browser convention).
+  // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs, ⌘1–⌘8 pick one by position and ⌘9
+  // is the last (browser conventions). `code`, not `key`: the digit keys are
+  // where they are whatever the keyboard layout prints on them.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault()
         cycleTab(e.shiftKey ? -1 : 1)
+        return
+      }
+      const digit = /^Digit([1-9])$/.exec(e.code)
+      // ⇧⌘1 and ⇧⌘2 are menu items, but macOS matches a menu key after Shift
+      // has turned 1 into ! and the item never fires. They are handled here.
+      const panel = digit && { '1': 'toggle_sidebar', '2': 'toggle_threads' }[digit[1]]
+      if (panel && e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        void runMenu.current(panel)
+        return
+      }
+      if (digit && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault()
+        const list = tabsRef.current
+        const n = Number(digit[1])
+        const tab = n === 9 ? list[list.length - 1] : list[n - 1]
+        if (tab) setActiveId(tab.id)
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [cycleTab])
+
+  // Holding ⌘ puts each tab's ⌘-number in its close button's slot. The slot is
+  // always laid out, so no tab changes width. A short wait keeps quick
+  // shortcuts (⌘S, ⌘C) from flashing the numbers; any other key cancels it.
+  const [showTabKeys, setShowTabKeys] = useState(false)
+  useEffect(() => {
+    let timer: number | undefined
+    const hide = () => {
+      window.clearTimeout(timer)
+      setShowTabKeys(false)
+    }
+    const onDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Meta') hide()
+      else if (!e.repeat) {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(() => setShowTabKeys(true), 60)
+      }
+    }
+    const onUp = (e: KeyboardEvent) => {
+      if (e.key === 'Meta') hide()
+    }
+    window.addEventListener('keydown', onDown, true)
+    window.addEventListener('keyup', onUp, true)
+    // ⌘Tab to another app: the key comes up where this window cannot see it.
+    window.addEventListener('blur', hide)
+    return () => {
+      hide()
+      window.removeEventListener('keydown', onDown, true)
+      window.removeEventListener('keyup', onUp, true)
+      window.removeEventListener('blur', hide)
+    }
+  }, [])
+
+  /** The number ⌘-digit uses for the tab at `i`: 1–8 by position, 9 for the last. */
+  const tabKey = (i: number, count: number) => (i < 8 ? i + 1 : i === count - 1 ? 9 : null)
+
+  // ---- dragging tabs -------------------------------------------------------
+
+  // Pointer events rather than HTML drag and drop: the window's file drop
+  // handler sits on the native drag, and a tab should move within the bar, not
+  // leave it. The order changes live as the tab passes a neighbour's midpoint;
+  // between those the dragged tab follows the pointer on a transform.
+  const tabEls = useRef(new Map<string, HTMLDivElement>())
+  const drag = useRef<{ id: string; pointerId: number; startX: number; grab: number; x: number; moving: boolean } | null>(null)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+
+  /** Put the dragged tab under the pointer, measured from its slot. */
+  const placeDragged = useCallback(() => {
+    const d = drag.current
+    const el = d && tabEls.current.get(d.id)
+    if (!d || !el || !d.moving) return
+    // offsetLeft counts from the offset parent, so the pointer has to as well.
+    const origin = (el.offsetParent as HTMLElement).getBoundingClientRect().left
+    const first = tabEls.current.get(tabsRef.current[0].id)!
+    const last = tabEls.current.get(tabsRef.current[tabsRef.current.length - 1].id)!
+    // Kept within the run of tabs, so it cannot be pulled over the controls.
+    const left = Math.min(
+      Math.max(d.x - origin - d.grab, first.offsetLeft),
+      last.offsetLeft + last.offsetWidth - el.offsetWidth,
+    )
+    el.style.transform = `translateX(${left - el.offsetLeft}px)`
+  }, [])
+
+  // A reorder moves the slot under the tab; keep the tab where the pointer is.
+  useLayoutEffect(placeDragged, [tabs, placeDragged])
+
+  const onTabPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
+    const el = e.currentTarget
+    drag.current = {
+      id,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      grab: e.clientX - el.getBoundingClientRect().left,
+      x: e.clientX,
+      moving: false,
+    }
+  }
+
+  const onTabPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    if (!d || d.pointerId !== e.pointerId) return
+    d.x = e.clientX
+    if (!d.moving) {
+      // A few pixels of slack, so a click that wobbles is still a click.
+      if (Math.abs(e.clientX - d.startX) < 4) return
+      d.moving = true
+      e.currentTarget.setPointerCapture(e.pointerId)
+      setDraggingId(d.id)
+      setActiveId(d.id)
+    }
+    const el = e.currentTarget
+    const centre = e.clientX - d.grab + el.offsetWidth / 2
+    const list = tabsRef.current
+    const others = list.filter((t) => t.id !== d.id)
+    let to = 0
+    for (const t of others) {
+      const r = tabEls.current.get(t.id)!.getBoundingClientRect()
+      if (centre > r.left + r.width / 2) to++
+    }
+    const from = list.findIndex((t) => t.id === d.id)
+    if (to !== from) {
+      const next = [...others]
+      next.splice(to, 0, list[from])
+      setTabs(next)
+    } else {
+      placeDragged()
+    }
+  }
+
+  const endTabDrag = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    if (!d || d.pointerId !== e.pointerId) return
+    drag.current = null
+    if (!d.moving) return
+    e.currentTarget.style.transform = ''
+    setDraggingId(null)
+  }
 
   // ---- closing and quitting ----------------------------------------------
 
@@ -415,15 +552,12 @@ export default function App() {
 
   // ---- menu ---------------------------------------------------------------
 
+  /** Runs a menu item by id; set by the effect below. Keys the menu cannot
+   *  catch come here too. */
+  const runMenu = useRef<(id: string) => Promise<void>>(async () => {})
+
   useEffect(() => {
-    const un = listen<{ id: string; window?: string | null }>('menu', async (e) => {
-      // The backend names the window that had focus. Every window receives the
-      // event regardless of how it is emitted, so the check has to be here:
-      // without it one Cmd+N opened a window per open window, and Cmd+W closed
-      // a tab in each of them.
-      const target = e.payload.window
-      if (target && target !== getCurrentWindow().label) return
-      const id = e.payload.id
+    const run = async (id: string) => {
       if (id.startsWith('recent:')) {
         await openPath(id.slice('recent:'.length))
         return
@@ -529,6 +663,16 @@ export default function App() {
       // Document-scoped: the active tab handles it.
       const act = tabActions(activeRef.current)
       if (act) await act.menu(id)
+    }
+    runMenu.current = run
+    const un = listen<{ id: string; window?: string | null }>('menu', async (e) => {
+      // The backend names the window that had focus. Every window receives the
+      // event regardless of how it is emitted, so the check has to be here:
+      // without it one Cmd+N opened a window per open window, and Cmd+W closed
+      // a tab in each of them.
+      const target = e.payload.window
+      if (target && target !== getCurrentWindow().label) return
+      await run(e.payload.id)
     })
     return () => {
       void un.then((f) => f())
@@ -607,19 +751,27 @@ export default function App() {
 
       <div className="workspace">
         <div className={`tabbar ${sideOpen ? '' : 'tabbar-inset'}`} data-tauri-drag-region>
-          {/* ⌘1 is the shortcut; this is the same toggle with a face. It moves
+          {/* ⇧⌘1 is the shortcut; this is the same toggle with a face. It moves
               into the sidebar head while the pane is open. */}
           {tabs.length > 0 && !sideOpen && (
-            <button type="button" className="side-toggle" title="Show Sidebar (⌘1)" onClick={() => setSidebarOpen(true)}>
+            <button type="button" className="side-toggle" title="Show Sidebar (⇧⌘1)" onClick={() => setSidebarOpen(true)}>
               <SidebarGlyph />
             </button>
           )}
-          {tabs.map((t) => (
+          {tabs.map((t, i) => (
             <div
               key={t.id}
-              className={`tab ${t.id === activeId ? 'tab-active' : ''} ${isDraft(t) && t.dirty ? 'tab-dirty' : ''}`}
+              ref={(el) => {
+                if (el) tabEls.current.set(t.id, el)
+                else tabEls.current.delete(t.id)
+              }}
+              className={`tab ${t.id === activeId ? 'tab-active' : ''} ${isDraft(t) && t.dirty ? 'tab-dirty' : ''} ${t.id === draggingId ? 'tab-dragging' : ''} ${showTabKeys && tabKey(i, tabs.length) ? 'tab-keyed' : ''}`}
               title={isDraft(t) ? 'Not saved yet (⌘S)' : t.path}
               onClick={() => setActiveId(t.id)}
+              onPointerDown={(e) => onTabPointerDown(e, t.id)}
+              onPointerMove={onTabPointerMove}
+              onPointerUp={endTabDrag}
+              onPointerCancel={endTabDrag}
               onAuxClick={(e) => {
                 if (e.button === 1) void closeTab(t.id)
               }}
@@ -636,6 +788,7 @@ export default function App() {
               >
                 <span className="tab-x">×</span>
                 <span className="tab-dot">•</span>
+                <span className="tab-key">{tabKey(i, tabs.length)}</span>
               </button>
             </div>
           ))}
