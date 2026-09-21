@@ -165,6 +165,10 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     const findInput = useRef<HTMLInputElement>(null);
     const [sessionMenu, setSessionMenu] = useState(false);
     const [coach, setCoach] = useState(false);
+    /** The opening animation has played. A tab switch shows the view again,
+     *  and the browser restarts an animation on anything that comes back from
+     *  display: none, so after the first time it is switched off. */
+    const [entered, setEntered] = useState(false);
     const [panelMode, setPanelMode] = useState<"threads" | "versions">(
       "threads",
     );
@@ -1580,7 +1584,12 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
           {loaded && (
             <div className="canvas" ref={canvasRef}>
-              <div className="doc">
+              <div
+                className={`doc ${entered ? "doc-entered" : ""}`}
+                onAnimationEnd={(e) => {
+                  if (e.animationName === "doc-in") setEntered(true);
+                }}
+              >
                 <div className="doc-path" title={loaded.doc.path}>
                   <span dir="ltr">{loaded.doc.path}</span>
                 </div>

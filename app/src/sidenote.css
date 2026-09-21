@@ -536,6 +536,9 @@ button {
      the Comment button, the rightmost item, was the part that spilled. */
   animation: doc-in 240ms var(--ease) backwards;
 }
+.doc-entered {
+  animation: none;
+}
 @keyframes doc-in {
   from {
     opacity: 0;

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
 
 import { Editor, type EditorHandle } from './editor/Editor'
 
@@ -86,11 +86,20 @@ export const DraftView = forwardRef<DraftActions, Props>(function DraftView(
     [onToast],
   )
 
+  // Off after the first play, as in DocumentView: switching back to the tab
+  // would restart it.
+  const [entered, setEntered] = useState(false)
+
   return (
     <div className="docview" hidden={!active}>
       <main className="main">
         <div className="canvas">
-          <div className="doc">
+          <div
+            className={`doc ${entered ? 'doc-entered' : ''}`}
+            onAnimationEnd={(e) => {
+              if (e.animationName === 'doc-in') setEntered(true)
+            }}
+          >
             {/* Stands where the path line stands once there is a path. */}
             <div className="draft-note">
               <span>Not saved yet</span>
