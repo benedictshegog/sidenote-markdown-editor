@@ -1,6 +1,20 @@
 // Undo the serialiser's cosmetic churn so the file on disk stays close to
 // what its author wrote. Applied to every getMarkdown() result.
 
+import { splitFrontmatter } from './frontmatter'
+
+/** remark-stringify options for every save. The editor and the tests share
+ *  them, so a test round trip is the one the app makes. */
+export const stringifyOptions = {
+  bullet: '-',
+  emphasis: '_',
+  strong: '*',
+  rule: '-',
+  fences: true,
+  listItemIndent: 'one',
+  resourceLink: false,
+} as const
+
 const AUTOLINK = /<(https?:\/\/[^\s<>]+)>/g
 
 function isDelimiterRow(line: string): boolean {
@@ -25,8 +39,11 @@ function canonicalDelimiter(line: string): string {
 }
 
 export function normaliseMarkdown(md: string): string {
+  // Front matter is YAML, written back verbatim by the serialiser. None of the
+  // markdown fixes below apply to it.
+  const [head, body] = splitFrontmatter(md)
   let inFence = false
-  const lines = md.split('\n').map((line) => {
+  const lines = body.split('\n').map((line) => {
     if (/^\s*(```|~~~)/.test(line)) {
       inFence = !inFence
       return line
@@ -42,7 +59,7 @@ export function normaliseMarkdown(md: string): string {
     }
     return l
   })
-  let out = lines.join('\n')
+  let out = head + lines.join('\n')
   // One trailing newline, never more.
   out = out.replace(/\n+$/, '\n')
   return out
