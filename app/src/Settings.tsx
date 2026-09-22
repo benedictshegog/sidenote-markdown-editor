@@ -58,9 +58,10 @@ interface Props {
   /** Run a forced check. The banner belongs to App, so the sheet closes and
    *  hands over rather than growing a second copy of the update UI. */
   onCheckUpdates: () => void
+  onReleaseNotes: () => void
 }
 
-export function Settings({ onClose, onToast, onCheckUpdates }: Props) {
+export function Settings({ onClose, onToast, onCheckUpdates, onReleaseNotes }: Props) {
   const [appearance, setAppearance] = useState<Appearance>(
     (localStorage.getItem('sidenote.appearance') as Appearance | null) ?? 'system',
   )
@@ -227,7 +228,19 @@ export function Settings({ onClose, onToast, onCheckUpdates }: Props) {
         </div>
 
         <div className="sheet-foot">
-          <span>Sidenote{version && ` ${version}`}</span>
+          <span className="foot-version">
+            Sidenote{version && ` ${version}`}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                onClose()
+                onReleaseNotes()
+              }}
+            >
+              Release Notes
+            </button>
+          </span>
           <span className="foot-update">
             {update?.newer && update.latest && <span className="avail">{update.latest} available</span>}
             <button

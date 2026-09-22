@@ -27,6 +27,27 @@ It needs the two sibling checkouts. Override if yours are elsewhere:
 SIDENOTE_SITE_REPO=... SIDENOTE_TAP_REPO=... scripts/release.sh 0.1.6
 ```
 
+### Release notes
+
+`CHANGELOG.md` is the release notes. The app bundles it (`app/src/releaseNotes.ts`)
+and, on the first launch after an update, shows a small "What's new" chip that
+opens the releases since the last version the user ran. Settings links to the
+full history.
+
+- A commit with a user-visible change adds a bullet under `## Unreleased` in
+  the same commit. Bullets are for the user, not the developer: what they can
+  now do, or what no longer goes wrong. One to five per release, plain
+  English, no sub-bullets, no links, no em-dashes.
+- Before releasing, read `git log v<previous>..HEAD` and check that
+  `## Unreleased` covers every user-visible change. Merge and trim it; leave
+  out refactors, CI and release plumbing. If nothing is user-visible, write
+  `- Small fixes and internal improvements.`
+- `release.sh` refuses to start when `## Unreleased` has no bullets (and prints
+  the commits to draft from), then renames it to `## X.Y.Z (YYYY-MM-DD)` in the
+  release commit. `CHANGELOG.md` may be uncommitted when you run it.
+- To see the chip in the dev app: `VITE_NOTES_FROM=0.1.29 pnpm dev:app` fakes
+  an update from that version.
+
 ### How installed copies learn about a release
 
 Homebrew owns the install, so the app never replaces itself. It reads

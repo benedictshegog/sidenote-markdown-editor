@@ -66,8 +66,9 @@ for repo in "$REPO_ROOT" "$SITE_REPO" "$TAP_REPO"; do
   branch="$(git -C "$repo" branch --show-current)"
   [ -n "$branch" ] || die "$(basename "$repo") is in a detached HEAD"
   # Untracked files are fine; staged or modified tracked files are not, or the
-  # release commit would sweep up unrelated work.
-  git -C "$repo" diff --quiet && git -C "$repo" diff --cached --quiet \
+  # release commit would sweep up unrelated work. CHANGELOG.md is the one
+  # exception: notes written just before releasing go in the release commit.
+  git -C "$repo" diff --quiet -- . ':!CHANGELOG.md' && git -C "$repo" diff --cached --quiet \
     || die "$(basename "$repo") has uncommitted changes to tracked files"
   # Behind origin is just as fatal as dirty, and fails far later: the tap push
   # is rejected after the .dmg is already built, tagged and published, which
@@ -83,6 +84,19 @@ done
 
 git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null \
   && die "tag v$VERSION already exists"
+
+# Release notes. The app bundles CHANGELOG.md and shows the new section after
+# the update lands, so a release without notes is a release the user is told
+# nothing about. Write them under `## Unreleased` (or `## $VERSION`); the bump
+# below stamps the version and date.
+NOTES_HEAD="$(grep -m1 -E "^## (Unreleased|$VERSION)( |\$)" CHANGELOG.md || true)"
+NOTES_COUNT="$(awk -v h="$NOTES_HEAD" '$0 == h {on=1; next} /^## / {on=0} on && /^- / {n++} END {print n+0}' CHANGELOG.md)"
+if [ -z "$NOTES_HEAD" ] || [ "$NOTES_COUNT" -eq 0 ]; then
+  printf '\n    Changes since v%s, to write the notes from:\n' "$CURRENT" >&2
+  git log --format='      %s' "v$CURRENT..HEAD" >&2
+  die "CHANGELOG.md has no notes for $VERSION: add '- ' bullets under '## Unreleased'"
+fi
+info "release notes: $NOTES_COUNT bullet(s) under '$NOTES_HEAD'"
 
 command -v cargo >/dev/null || die "cargo not on PATH"
 command -v pnpm  >/dev/null || die "pnpm not on PATH"
@@ -109,7 +123,12 @@ sed -i '' "s/^version = \"$CURRENT\"/version = \"$VERSION\"/" Cargo.toml
 # Keep the README's download link pointing at a file that exists.
 sed -i '' "s|$DOWNLOAD_BASE/Sidenote_${CURRENT}_aarch64.dmg|$DMG_URL|" README.md
 cargo update -w --quiet   # rewrites Cargo.lock with the new workspace version
-info "app/package.json, tauri.conf.json, Cargo.toml, Cargo.lock, README.md"
+# Only the first matching heading: an older section is history, not this one.
+awk -v h="$NOTES_HEAD" -v n="## $VERSION ($(date +%Y-%m-%d))" \
+  '!done && $0 == h {print n; done=1; next} {print}' CHANGELOG.md > CHANGELOG.md.tmp
+mv CHANGELOG.md.tmp CHANGELOG.md
+grep -q "^## $VERSION ($(date +%Y-%m-%d))$" CHANGELOG.md || die "release notes heading not rewritten"
+info "app/package.json, tauri.conf.json, Cargo.toml, Cargo.lock, README.md, CHANGELOG.md"
 
 # ---- build ----------------------------------------------------------------
 
@@ -134,7 +153,7 @@ info "sha256 $SHA"
 # ---- commit and tag the source -------------------------------------------
 
 say "Committing source"
-git add app/package.json app/src-tauri/tauri.conf.json Cargo.toml Cargo.lock README.md
+git add app/package.json app/src-tauri/tauri.conf.json Cargo.toml Cargo.lock README.md CHANGELOG.md
 git commit -q -m "$VERSION"
 git tag -a "v$VERSION" -m "Sidenote $VERSION"
 git push -q --follow-tags
