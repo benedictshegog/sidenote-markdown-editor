@@ -2115,6 +2115,37 @@ html.sidenote-col-resizing * {
   }
 }
 
+/* YAML front matter. Metadata, not prose: small, muted, monospace, above
+   the document, and labelled so it does not read as a stray code block. */
+.sidenote-editor .milkdown .ProseMirror pre.sidenote-frontmatter {
+  position: relative;
+  margin: 0 0 1.4em;
+  padding: 1.7em 0.9em 0.7em;
+  background: var(--surface);
+  border-radius: 8px;
+  color: var(--fg-2);
+  font: 400 0.8em/1.55 var(--font-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sidenote-editor .milkdown .ProseMirror pre.sidenote-frontmatter::before {
+  content: 'Front matter';
+  position: absolute;
+  top: 0.55em;
+  left: 0.9em;
+  font: 500 0.85em/1 var(--font-ui);
+  color: var(--fg-3);
+  pointer-events: none;
+  user-select: none;
+}
+.sidenote-editor .milkdown .ProseMirror pre.sidenote-frontmatter code {
+  font: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
 /* code blocks (CodeMirror feature) */
 .sidenote-editor .milkdown .milkdown-code-block {
   background: var(--surface);

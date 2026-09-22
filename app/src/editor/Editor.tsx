@@ -39,8 +39,9 @@ import {
   parseWithFootnotes,
 } from "./footnotes";
 import { TextMap } from "./textmap";
-import { normaliseMarkdown } from "./normalise";
+import { normaliseMarkdown, stringifyOptions } from "./normalise";
 import { ImageResolver } from "./images";
+import { frontmatter, frontmatterSize, FRONTMATTER } from "./frontmatter";
 
 export interface EditorHandle {
   getMarkdown(): string;
@@ -201,6 +202,9 @@ function blockLevel(view: EditorView): number {
 
 function setLevel(view: EditorView, level: number) {
   const { schema } = view.state;
+  // Front matter is YAML. Turned into a heading, its text would be saved as
+  // markdown and read back as prose.
+  if (view.state.selection.$from.parent.type.name === FRONTMATTER) return;
   const type: NodeType | undefined =
     level === 0 ? schema.nodes.paragraph : schema.nodes.heading;
   if (!type) return;
@@ -356,15 +360,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
 
       crepe.editor
         .config((ctx) => {
-          ctx.set(remarkStringifyOptionsCtx, {
-            bullet: "-",
-            emphasis: "_",
-            strong: "*",
-            rule: "-",
-            fences: true,
-            listItemIndent: "one",
-            resourceLink: false,
-          });
+          ctx.set(remarkStringifyOptionsCtx, { ...stringifyOptions });
           ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: false });
           keepImageAltText(ctx);
           // Cmd-click a link to open it, the way Word, Pages and VS Code do.
@@ -404,6 +400,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
             },
           }));
         })
+        .use(frontmatter)
         .use(commentMark)
         .use($prose(() => presencePlugin))
         .use($prose(() => suggestionPlugin))
@@ -571,8 +568,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
 
       getPlainText: () =>
         withView((view) =>
+          // Front matter is left out, as `core::plain` leaves it out.
           view.state.doc.textBetween(
-            0,
+            frontmatterSize(view.state.doc),
             view.state.doc.content.size,
             "\n\n",
             // A footnote reference is a leaf too, but it is not a line break.
@@ -864,6 +862,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
             );
             tr.setMeta("addToHistory", false);
             view.dispatch(tr);
+            // Nothing took the mark (the selection is inside the front
+            // matter, which allows none): no passage to hang a thread on.
+            if (!collectMarks(view).get(DRAFT_ID)?.length) return null;
             return view.state.doc.textBetween(from, to, "\n");
           }) ?? null
         );

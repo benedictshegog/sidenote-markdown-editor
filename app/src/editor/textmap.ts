@@ -3,6 +3,7 @@
 // ProseMirror positions. The char offsets are what `core` anchors against.
 
 import type { Node as PMNode } from '@milkdown/kit/prose/model'
+import { FRONTMATTER } from './frontmatter'
 
 interface Segment {
   pmFrom: number
@@ -25,6 +26,9 @@ export class TextMap {
     let text = ''
     let first = true
     doc.descendants((node, pos) => {
+      // Front matter is metadata, not prose: `core::plain` drops it too, so
+      // no comment, edit or suggestion can be anchored in it.
+      if (node.type.name === FRONTMATTER) return false
       if (!node.isTextblock) return true
       if (!first) text += '\n'
       first = false

@@ -4,7 +4,37 @@
 
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 
+/// The YAML front matter at the top of `markdown`, and the rest. The editor
+/// reads it with remark-frontmatter and keeps it out of the prose, so it is
+/// dropped here by the same rule: `---` on the first line, closed by the next
+/// line that is `---`, either allowing trailing spaces or tabs. Empty head
+/// when there is none. pulldown-cmark's own metadata option is stricter (no
+/// blank first line), so it would disagree with the editor on some files.
+pub fn split_frontmatter(markdown: &str) -> (&str, &str) {
+    fn is_fence(line: &str) -> bool {
+        let line = line.trim_end_matches(['\n', '\r']);
+        line.strip_prefix("---")
+            .is_some_and(|rest| rest.chars().all(|c| c == ' ' || c == '\t'))
+    }
+    let mut lines = markdown.split_inclusive('\n');
+    let Some(first) = lines.next() else {
+        return ("", markdown);
+    };
+    if !first.ends_with('\n') || !is_fence(first) {
+        return ("", markdown);
+    }
+    let mut end = first.len();
+    for line in lines {
+        end += line.len();
+        if is_fence(line) {
+            return markdown.split_at(end);
+        }
+    }
+    ("", markdown)
+}
+
 pub fn plain_text(markdown: &str) -> String {
+    let (_, markdown) = split_frontmatter(markdown);
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
@@ -98,6 +128,30 @@ mod tests {
     #[test]
     fn undefined_footnote_reference_is_text() {
         assert_eq!(plain_text("No note[^9] here."), "No note[^9] here.");
+    }
+
+    #[test]
+    fn front_matter_is_not_text() {
+        let md = "---\nname: push\ndescription: \"[PR] [x]\"\n---\n\n# Heading\n\nBody.\n";
+        assert_eq!(plain_text(md), "Heading\nBody.");
+        assert_eq!(plain_text("---\n---\nBody."), "Body.");
+        assert_eq!(plain_text("--- \r\na: 1\r\n---\t\r\nBody."), "Body.");
+    }
+
+    #[test]
+    fn rule_not_at_the_top_stays_markdown() {
+        // Text first: a rule, then a setext heading, as CommonMark reads it.
+        assert_eq!(plain_text("Intro.\n\n---\nname: push\n---\n"), "Intro.\nname: push");
+        // Never closed: a rule and a paragraph.
+        assert_eq!(plain_text("---\nname: push\n"), "name: push");
+        assert_eq!(split_frontmatter("---"), ("", "---"));
+        assert_eq!(split_frontmatter("----\na\n---\n"), ("", "----\na\n---\n"));
+    }
+
+    #[test]
+    fn split_keeps_the_fences_in_the_head() {
+        assert_eq!(split_frontmatter("---\na: 1\n---\nB\n"), ("---\na: 1\n---\n", "B\n"));
+        assert_eq!(split_frontmatter("---\na: 1\n---"), ("---\na: 1\n---", ""));
     }
 
     #[test]
