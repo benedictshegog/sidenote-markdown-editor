@@ -12,6 +12,8 @@ export default defineConfig({
     strictPort: true,
     host: host || false,
     watch: { ignored: ['**/src-tauri/**'] },
+    // CHANGELOG.md sits at the repo root and is bundled as the release notes.
+    fs: { allow: ['..'] },
   },
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: {

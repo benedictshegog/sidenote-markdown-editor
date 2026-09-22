@@ -2749,3 +2749,148 @@ html.sidenote-col-resizing * {
   line-height: 1.5;
   margin: 0 0 10px;
 }
+
+/* ---- release notes ------------------------------------------------------ */
+
+/* After an update, and only then: a small chip in the bottom-left corner,
+   away from the centred toast and the dev chip on the right. It asks for
+   nothing, so it has no shadow to speak of and no backdrop. */
+.notes-pill {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: var(--fg-2);
+  animation: notes-in 240ms var(--ease) 600ms both;
+}
+.notes-pill-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 4px 0 10px;
+  border-radius: 999px 0 0 999px;
+  color: inherit;
+}
+.notes-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.notes-pill-sep {
+  color: var(--fg-3);
+}
+.notes-pill-cta {
+  color: var(--accent);
+}
+.notes-pill-open:hover .notes-pill-cta {
+  text-decoration: underline;
+}
+.notes-pill-x {
+  height: 100%;
+  padding: 0 9px 0 5px;
+  border-radius: 0 999px 999px 0;
+  color: var(--fg-3);
+  font-size: 13px;
+  line-height: 1;
+}
+.notes-pill-x:hover {
+  color: var(--fg);
+}
+@keyframes notes-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.foot-version {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notes-sheet {
+  width: 500px;
+}
+.notes-sheet .sheet-body {
+  padding-bottom: 8px;
+}
+.release {
+  padding: 14px 0 12px;
+  border-top: 1px solid var(--hairline);
+}
+.release:first-child {
+  border-top: 0;
+}
+.release-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.release-version {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.release.is-new .release-version {
+  color: var(--accent);
+}
+.release-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+}
+.release-date {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg-3);
+}
+.release-notes {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-2);
+}
+.release.is-new .release-notes {
+  color: var(--fg);
+}
+.release-notes li + li {
+  margin-top: 3px;
+}
+.release-notes code {
+  font-family: var(--font-code);
+  font-size: 11.5px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+.release-divider {
+  margin: 10px 0 0;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--hairline-strong);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.release-divider + .release {
+  border-top: 0;
+}

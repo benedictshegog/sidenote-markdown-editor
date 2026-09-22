@@ -12,6 +12,8 @@ import { Welcome } from './Welcome'
 import { Asterisk, Recents } from './Recents'
 import { Sidebar, SidebarGlyph } from './Sidebar'
 import { dismiss, dismissed, UpdateBar } from './Update'
+import { ReleaseNotes, WhatsNewPill } from './WhatsNew'
+import { takeUpdatedFrom } from './releaseNotes'
 import type { AppInfo, DocEntry, UpdateStatus } from './types'
 
 const TABS_KEY = 'sidenote.tabs'
@@ -54,6 +56,10 @@ export default function App() {
   const [welcome, setWelcome] = useState<{ needsCli: boolean; needsSkill: boolean; needsMd: boolean; intro: boolean } | null>(null)
   const [update, setUpdate] = useState<UpdateStatus | null>(null)
   const [info, setInfo] = useState<AppInfo | null>(null)
+  /** Set on the first launch after an update: the version it came from. */
+  const [updatedFrom, setUpdatedFrom] = useState<string | null>(null)
+  /** Release Notes is open; `from` marks which releases are new. */
+  const [notes, setNotes] = useState<{ from: string | null } | null>(null)
   /** The document whose editor takes the cursor when it comes up: the one a
    *  draft just became, so the typing carries on across the save. */
   const [focusId, setFocusId] = useState<string | null>(null)
@@ -686,6 +692,8 @@ export default function App() {
     void (async () => {
       const inf = await ipc.appInfo().catch(() => null)
       setInfo(inf)
+      // One window notices the update; a second window would say it twice.
+      if (inf && getCurrentWindow().label === 'main') setUpdatedFrom(takeUpdatedFrom(inf.version))
       await refreshDocs()
       const hashDoc = new URLSearchParams(location.hash.replace(/^#/, '')).get('doc')
       const pending = hashDoc ? [] : await ipc.takePendingOpens()
@@ -866,6 +874,17 @@ export default function App() {
           />
         )}
 
+        {updatedFrom && info && !update && (
+          <WhatsNewPill
+            version={info.version}
+            onOpen={() => {
+              setNotes({ from: updatedFrom })
+              setUpdatedFrom(null)
+            }}
+            onDismiss={() => setUpdatedFrom(null)}
+          />
+        )}
+
         {toast && <div className="toast">{toast}</div>}
       </div>
 
@@ -886,8 +905,10 @@ export default function App() {
           onClose={() => setSettingsOpen(false)}
           onToast={showToast}
           onCheckUpdates={() => void checkUpdate(true)}
+          onReleaseNotes={() => setNotes({ from: null })}
         />
       )}
+      {notes && info && <ReleaseNotes current={info.version} from={notes.from} onClose={() => setNotes(null)} />}
       {welcome && (
         <Welcome
           needsCli={welcome.needsCli}
