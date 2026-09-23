@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.33 (2026-09-23)
 
 - After an update, a small note in the corner links to what changed. Settings has the full history.
 - Tables with six or more columns scroll sideways instead of squeezing every column into the page.
