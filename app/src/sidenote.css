@@ -1948,15 +1948,22 @@ button {
 }
 
 /* tables */
+/* Separate borders, each cell drawing its right and bottom edge and the
+   first row and column closing the top and left. Collapsed borders are
+   painted by the table, and WebKit drops them from a table inside a
+   sideways scroller, so a wide table lost every rule. */
 .sidenote-editor .milkdown .ProseMirror table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.92em;
   margin: 0 0 1.2em;
   width: 100%;
 }
 .sidenote-editor .milkdown .ProseMirror th,
 .sidenote-editor .milkdown .ProseMirror td {
-  border: 1px solid var(--hairline);
+  border: 0;
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
   padding: 0.4em 0.7em;
   text-align: left;
   vertical-align: top;
@@ -1975,9 +1982,45 @@ button {
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
+.sidenote-editor .milkdown .ProseMirror tr > :first-child {
+  border-left: 1px solid var(--hairline);
+}
+.sidenote-editor .milkdown .ProseMirror tr:first-child > * {
+  border-top: 1px solid var(--hairline);
+}
 .sidenote-editor .milkdown .ProseMirror th {
   font-weight: 600;
   background: var(--surface);
+}
+/* Wide tables scroll sideways, the way Notion's do. prosemirror-tables gives
+   every table a fixed layout, so each column gets an equal share of the
+   680px measure: fine for a few columns, but at six or more the text breaks
+   mid-word and the rows grow very tall. From six columns on (WIDE_COLUMNS in
+   editor/tableResize.ts) a table sizes its columns to their content instead,
+   with long text capped so it wraps, and scrolls when that is wider than the
+   page. A wide table that still fits keeps the full width. The scrollbar is
+   drawn, not overlaid, so a mouse user can see there is more to the right. */
+.sidenote-editor .milkdown .milkdown-table-block .table-wrapper {
+  overflow-x: auto;
+}
+.sidenote-editor .milkdown .milkdown-table-block .table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+.sidenote-editor .milkdown .milkdown-table-block .table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: 4px;
+}
+.sidenote-editor .milkdown .ProseMirror table:has(tr > :nth-child(6)) {
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+/* Columns never go below 64px (MIN_WIDTH in editor/tableResize.ts), so a
+   short header such as "WTP" or "Score" stays on one line. The padding is
+   0.7em a side, so the content gets the rest. */
+.sidenote-editor .milkdown .ProseMirror table:has(tr > :nth-child(6)) :is(th, td) > * {
+  min-width: calc(64px - 1.4em);
+  max-width: 18em;
 }
 /* Column resizing (editor/tableResize.ts). Nothing is drawn on hover: near
    an internal column boundary the block gets `data-col-resize`, which turns

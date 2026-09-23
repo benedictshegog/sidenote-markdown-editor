@@ -12,10 +12,11 @@
 // same job with its own DOM handling and works whether the document is
 // locked or not, since how wide a column looks is a viewing affordance.
 //
-// A drag moves width between the two columns either side of the boundary,
-// so the table's total width never changes. Widths are painted as
-// percentages of that total, so the table keeps the stylesheet's full width
-// when the window is resized. They live in the cells' `colwidth` attr, the
+// A drag changes only the column on the left of the boundary, as in Notion:
+// narrow a column and the whole table gets narrower, widen it and the table
+// grows, scrolling sideways once it is wider than the page. The table's
+// right edge is a boundary too. Once resized, a table is exactly as wide as
+// its columns add up to, whatever the window width. They live in the cells' `colwidth` attr, the
 // attr the schema already has. GFM has no syntax for them, so they never
 // reach the markdown: the serialised text is identical before and after a
 // resize, no save is triggered, and the transaction stays out of the undo
@@ -34,7 +35,11 @@ export const tableResizeKey = new PluginKey("sidenote-table-resize");
 
 /** Pointer distance from a cell edge, in px, that counts as the boundary. */
 const EDGE = 6;
-const MIN_WIDTH = 40;
+/**
+ * The narrowest a column can be dragged or painted, in px. The stylesheet
+ * gives wide tables the same floor when they size to their content.
+ */
+const MIN_WIDTH = 64;
 const STORAGE_PREFIX = "sidenote.tableWidths:";
 /** Set on the table block while the pointer is on a boundary or dragging. */
 const ZONE_ATTR = "data-col-resize";
@@ -86,7 +91,9 @@ function columnWidths(table: PMNode): (number | null)[] {
 /**
  * Write the widths into a `<colgroup>` on the table, creating it once. Each
  * column gets its share of the total as a percentage; a table with no widths
- * gets an empty colgroup and lays out as before.
+ * gets an empty colgroup and lays out as before. The table is given the
+ * total as its width, and the stylesheet's minimum is lifted, so it can be
+ * narrower than the page as well as wider.
  */
 function paint(tableEl: HTMLTableElement, widths: (number | null)[]) {
   let colgroup = tableEl.querySelector(":scope > colgroup");
@@ -95,16 +102,19 @@ function paint(tableEl: HTMLTableElement, widths: (number | null)[]) {
     tableEl.insertBefore(colgroup, tableEl.firstChild);
   }
   const complete = widths.length > 0 && widths.every((w) => w);
-  const cols = complete ? widths : [];
+  // Widths saved before the floor was raised can sit below it.
+  const cols = complete ? widths.map((w) => Math.max(MIN_WIDTH, w ?? 0)) : [];
   // Auto layout treats <col> widths as hints and re-solves from content on
   // every move, which is what made the drag jump. Fixed layout obeys the
   // colgroup; a table with no widths keeps auto layout and its old look.
   tableEl.style.tableLayout = complete ? "fixed" : "";
+  const total = cols.reduce<number>((a, w) => a + (w ?? 0), 0);
+  tableEl.style.width = complete ? `${total}px` : "";
+  tableEl.style.minWidth = complete ? "0" : "";
   while (colgroup.childElementCount > cols.length)
     colgroup.lastElementChild?.remove();
   while (colgroup.childElementCount < cols.length)
     colgroup.appendChild(document.createElement("col"));
-  const total = cols.reduce<number>((a, w) => a + (w ?? 0), 0);
   cols.forEach((w, i) => {
     const col = colgroup.children[i] as HTMLElement;
     const css = `${((100 * (w ?? 0)) / total).toFixed(3)}%`;
@@ -193,7 +203,7 @@ interface Drag {
   tablePos: number;
   tableEl: HTMLTableElement;
   block: HTMLElement;
-  /** Column on the left of the boundary; `col + 1` is on the right. */
+  /** Column on the left of the boundary: the one the drag resizes. */
   col: number;
   startX: number;
   /** Every column's width when the drag began, seeded if none was set. */
@@ -298,7 +308,7 @@ class ResizeView {
 
   /**
    * The internal boundary under the pointer: the column whose right edge it
-   * is on, or null. The table's outer edges do not count.
+   * is on, or null. The table's right edge counts; its left edge does not.
    */
   private boundaryAt(e: PointerEvent): Zone | null {
     const target = e.target;
@@ -307,7 +317,7 @@ class ResizeView {
     if (!cell || !this.view.dom.contains(cell)) return null;
     const r = cell.getBoundingClientRect();
     if (r.right - e.clientX <= EDGE) {
-      if (!cell.nextElementSibling) return null;
+      // The column's own right edge, including the table's.
     } else if (e.clientX - r.left <= EDGE) {
       const prev = cell.previousElementSibling;
       if (!(prev instanceof HTMLElement)) return null;
@@ -330,7 +340,7 @@ class ResizeView {
     const map = TableMap.get(table);
     const col =
       map.colCount($cell.pos - start) + ($cell.nodeAfter?.attrs.colspan ?? 1) - 1;
-    if (col >= map.width - 1) return null;
+    if (col >= map.width) return null;
     return { block, tablePos: start - 1, col };
   }
 
@@ -368,10 +378,10 @@ class ResizeView {
     e.stopPropagation();
     this.enterZone(zone);
     // A table that was never resized has no widths; seed every column with
-    // what is on screen so the two either side of the boundary can trade.
+    // what is on screen, so only the dragged column changes size.
     const attrs = columnWidths(table);
     const startWidths = attrs.every((w) => w)
-      ? (attrs as number[])
+      ? (attrs as number[]).map((w) => Math.max(MIN_WIDTH, w))
       : renderedWidths(tableEl);
     if (startWidths.length !== TableMap.get(table).width) return;
     const line = document.createElement("div");
@@ -399,13 +409,10 @@ class ResizeView {
     const d = this.drag;
     if (!d) return;
     if (!e.buttons) return this.endDrag(true);
-    const pair = d.startWidths[d.col] + d.startWidths[d.col + 1];
-    const left = Math.min(
-      Math.max(MIN_WIDTH, Math.round(d.startWidths[d.col] + e.clientX - d.startX)),
-      pair - MIN_WIDTH,
+    d.widths[d.col] = Math.max(
+      MIN_WIDTH,
+      Math.round(d.startWidths[d.col] + e.clientX - d.startX),
     );
-    d.widths[d.col] = left;
-    d.widths[d.col + 1] = pair - left;
     paint(d.tableEl, d.widths);
     const cell = boundaryCell(d.tableEl, d.col);
     if (cell) placeLine(d.line, d.block, cell);

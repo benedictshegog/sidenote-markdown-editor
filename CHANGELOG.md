@@ -3,6 +3,9 @@
 ## Unreleased
 
 - After an update, a small note in the corner links to what changed. Settings has the full history.
+- Tables with six or more columns scroll sideways instead of squeezing every column into the page.
+- Dragging a column border now resizes just that column, so the table grows or shrinks. The right edge can be dragged too.
+- Columns can no longer be made narrower than a short word.
 
 ## 0.1.32 (2026-09-22)
 
