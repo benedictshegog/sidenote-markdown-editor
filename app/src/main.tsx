@@ -8,10 +8,12 @@ import '@milkdown/crepe/theme/frame.css'
 import './sidenote.css'
 import App from './App'
 import { ipc } from './ipc'
+import { installLinkGuard } from './links'
 
 window.addEventListener('error', (e) => void ipc.uiLog(`error: ${e.message} @${e.filename}:${e.lineno}`))
 window.addEventListener('unhandledrejection', (e) => void ipc.uiLog(`rejection: ${String(e.reason?.stack ?? e.reason)}`))
 void ipc.uiLog('ui: boot')
+installLinkGuard()
 
 // No StrictMode: its double-mount destroys the first Crepe instance mid-create.
 createRoot(document.getElementById('root')!).render(<App />)

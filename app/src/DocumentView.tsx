@@ -9,6 +9,7 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 
+import { Contents } from "./Contents";
 import { Editor, type EditorHandle, type PresenceItem } from "./editor/Editor";
 import { ipc } from "./ipc";
 import { CommentMargin, type Draft } from "./panel/CommentMargin";
@@ -1584,6 +1585,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
           {loaded && (
             <div className="canvas" ref={canvasRef}>
+              {!showSource && <Contents canvasRef={canvasRef} mainRef={mainRef} />}
               <div
                 className={`doc ${entered ? "doc-entered" : ""}`}
                 onAnimationEnd={(e) => {

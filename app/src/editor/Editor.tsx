@@ -16,6 +16,7 @@ import { redo, undo } from "@milkdown/kit/prose/history";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
 
 import { ipc } from "../ipc";
+import { openExternally } from "../links";
 import type { ApplyResult, Selector, Suggestion, Thread } from "../types";
 import { codeTheme } from "./codeTheme";
 import { commentMark, DRAFT_ID } from "./commentMark";
@@ -292,14 +293,6 @@ function keepImageAltText(ctx: Ctx) {
   });
 }
 
-/** Hand a URL to the Rust side, which re-checks it against the window
- *  navigation guard before opening it in the user's browser. */
-function openExternally(href: string) {
-  void ipc
-    .openLink(href)
-    .catch((err) => void ipc.uiLog(`open_link: ${String(err)}`));
-}
-
 export const Editor = forwardRef<EditorHandle, Props>(
   function Editor(props, ref) {
     const rootRef = useRef<HTMLDivElement>(null);
@@ -392,7 +385,8 @@ export const Editor = forwardRef<EditorHandle, Props>(
                 const href = (e.target as HTMLElement | null)
                   ?.closest("a[href]")
                   ?.getAttribute("href");
-                if (!href) return false;
+                // A fragment scrolls on click instead (see links.ts).
+                if (!href || href.startsWith("#")) return false;
                 e.preventDefault();
                 openExternally(href);
                 return true;
@@ -533,28 +527,6 @@ export const Editor = forwardRef<EditorHandle, Props>(
       tr.setMeta("addToHistory", false);
       view.dispatch(tr);
     };
-
-    // The link chip Crepe shows on a plain click is the primary way to open a
-    // link — no modifier, and it is visible rather than remembered. Its URL is
-    // an <a target="_blank">, which opens a tab in a browser but does nothing
-    // useful inside a webview, so intercept it. The chip is a tooltip rather
-    // than editor content, so this cannot ride on the ProseMirror handler.
-    // defaultPrevented dedupes: hidden tabs keep their editors mounted, so more
-    // than one of these listeners is live at a time.
-    useEffect(() => {
-      const onClick = (event: MouseEvent) => {
-        if (event.defaultPrevented) return;
-        const a = (event.target as HTMLElement | null)?.closest(
-          "a.link-display",
-        );
-        const href = a?.getAttribute("href");
-        if (!href) return;
-        event.preventDefault();
-        openExternally(href);
-      };
-      document.addEventListener("click", onClick, true);
-      return () => document.removeEventListener("click", onClick, true);
-    }, []);
 
     // Declarative lock: React re-applies it on every change, and the create
     // handler applies it at mount, so it cannot be dropped by a mount race.

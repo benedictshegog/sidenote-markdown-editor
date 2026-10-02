@@ -86,6 +86,12 @@ pub fn create_window(app: &AppHandle, path: Option<&Path>) -> tauri::Result<taur
             let scale = w.scale_factor().ok()?;
             Some(pos.to_logical::<f64>(scale))
         });
+    let dev = app
+        .config()
+        .build
+        .dev_url
+        .clone()
+        .filter(|_| cfg!(debug_assertions));
     let mut builder = WebviewWindowBuilder::new(app, &label, url)
         // The product name, so a dev build's windows say so in Mission Control.
         .title(app.package_info().name.clone())
@@ -98,7 +104,7 @@ pub fn create_window(app: &AppHandle, path: Option<&Path>) -> tauri::Result<taur
         // file drops outright; without that WKWebView would navigate the window
         // to the file:// URL, which on_navigation does not gate.
         .disable_drag_drop_handler()
-        .on_navigation(allow_navigation)
+        .on_navigation(move |u| allow_navigation(u, dev.as_ref()))
         .visible(false);
     if let Some(p) = origin {
         builder = builder.position(p.x + 28.0, p.y + 28.0);
@@ -139,17 +145,28 @@ pub(crate) enum Nav {
 
 /// Classify a navigation target. Only the app's own front end loads in place;
 /// a link in a document belongs to the user's browser, not to this webview.
-pub(crate) fn classify(url: &tauri::Url) -> Nav {
+///
+/// "The app's own front end" is its one page, not its origin. A relative link
+/// in a document resolves against that origin, so `notes.md` arrived here as
+/// `tauri://localhost/notes.md` and loaded in place, and a link to any local
+/// server was taken for the dev server: either way the window was left on a
+/// page with no way back to the document. `dev` is the dev server's URL in a
+/// debug build, and `None` otherwise.
+pub(crate) fn classify(url: &tauri::Url, dev: Option<&tauri::Url>) -> Nav {
+    let front_page = matches!(url.path(), "" | "/" | "/index.html");
     match url.scheme() {
-        // The bundled front end and its assets.
-        "tauri" | "asset" | "blob" | "data" | "about" => Nav::InPlace,
-        "http" | "https" => {
-            // The Vite dev server behind `pnpm tauri dev`.
-            match url.host_str().unwrap_or("") {
-                "localhost" | "127.0.0.1" | "tauri.localhost" => Nav::InPlace,
-                _ => Nav::External,
-            }
-        }
+        // The bundled front end.
+        "tauri" | "asset" if url.host_str() == Some("localhost") && front_page => Nav::InPlace,
+        "tauri" | "asset" => Nav::Refuse,
+        "blob" | "data" | "about" => Nav::InPlace,
+        "http" | "https" => match url.host_str().unwrap_or("") {
+            // Windows' spelling of the bundled front end.
+            "tauri.localhost" if front_page => Nav::InPlace,
+            "tauri.localhost" => Nav::Refuse,
+            // The Vite dev server behind `pnpm dev:app`.
+            _ if front_page && dev.is_some_and(|d| d.origin() == url.origin()) => Nav::InPlace,
+            _ => Nav::External,
+        },
         "mailto" | "tel" => Nav::External,
         // Refuse the rest. A document is written by an agent, so a link in one
         // must not be able to reach `file:` or launch a local application.
@@ -159,19 +176,14 @@ pub(crate) fn classify(url: &tauri::Url) -> Nav {
 
 /// Whether an explicit request to open a link should hand it to the browser.
 ///
-/// Wider than [`classify`] on purpose: that keeps localhost in the webview
-/// because it is the dev server, but a link the user alt-clicked belongs in a
-/// browser either way. Everything [`classify`] refuses stays refused.
+/// Classified with no dev server, so a link the user clicked to a local
+/// server goes to the browser even in a debug build.
 pub(crate) fn link_opens_externally(url: &tauri::Url) -> bool {
-    match classify(url) {
-        Nav::External => true,
-        Nav::InPlace => matches!(url.scheme(), "http" | "https"),
-        Nav::Refuse => false,
-    }
+    classify(url, None) == Nav::External
 }
 
-fn allow_navigation(url: &tauri::Url) -> bool {
-    match classify(url) {
+fn allow_navigation(url: &tauri::Url, dev: Option<&tauri::Url>) -> bool {
+    match classify(url, dev) {
         Nav::InPlace => true,
         Nav::External => {
             open_external(url.as_str());
@@ -415,7 +427,8 @@ mod tests {
     use super::{classify, link_opens_externally, Nav};
 
     fn nav(s: &str) -> Nav {
-        classify(&s.parse().unwrap())
+        let dev = "http://localhost:5173".parse().unwrap();
+        classify(&s.parse().unwrap(), Some(&dev))
     }
 
     #[test]
@@ -423,6 +436,26 @@ mod tests {
         assert_eq!(nav("tauri://localhost/index.html"), Nav::InPlace);
         assert_eq!(nav("http://localhost:5173/index.html"), Nav::InPlace);
         assert_eq!(nav("http://tauri.localhost/index.html"), Nav::InPlace);
+        assert_eq!(nav("tauri://localhost"), Nav::InPlace);
+        assert_eq!(nav("http://localhost:5173/"), Nav::InPlace);
+    }
+
+    /// A relative link in a document resolves against the app's origin. It
+    /// must not load in the window.
+    #[test]
+    fn relative_links_do_not_load_in_place() {
+        assert_eq!(nav("tauri://localhost/notes.md"), Nav::Refuse);
+        assert_eq!(nav("http://tauri.localhost/docs/plan.md"), Nav::Refuse);
+        assert_eq!(nav("http://localhost:5173/notes.md"), Nav::External);
+    }
+
+    /// Only the dev server is ours; any other local server is a link.
+    #[test]
+    fn other_local_servers_go_to_the_browser() {
+        assert_eq!(nav("http://localhost:3000/"), Nav::External);
+        assert_eq!(nav("http://127.0.0.1:8000/index.html"), Nav::External);
+        let release = classify(&"http://localhost:5173/".parse().unwrap(), None);
+        assert_eq!(release, Nav::External);
     }
 
     #[test]

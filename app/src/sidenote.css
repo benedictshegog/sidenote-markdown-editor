@@ -392,6 +392,12 @@ button {
   /* The traffic lights end at x=78; 18px of clear space before the toggle. */
   padding-left: 96px;
 }
+.is-fullscreen .tabbar-inset {
+  padding-left: 10px;
+}
+.is-fullscreen .sidebar-head {
+  padding-left: 16px;
+}
 .tabbar-space {
   flex: 1;
   align-self: stretch;
@@ -559,6 +565,177 @@ button {
   text-overflow: ellipsis;
   direction: rtl;
   text-align: left;
+}
+
+/* ---- table of contents ------------------------------------------------- */
+
+/* The canvas's empty left column. A container, so the list can choose its
+   form from the space it really has: the comment margin and the sidebar both
+   take from this column without the window changing size. */
+.toc-cell {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: stretch;
+  min-width: 0;
+  container-type: inline-size;
+}
+.toc {
+  position: sticky;
+  top: 72px;
+  display: flex;
+  justify-content: flex-start;
+  width: fit-content;
+  padding: 0 12px 0 16px;
+  animation: fade 240ms var(--ease) backwards;
+}
+:root[data-toc='off'] .toc {
+  display: none;
+}
+@container (max-width: 39px) {
+  .toc {
+    display: none;
+  }
+}
+
+/* Narrow: a rail of ticks, one per heading, longer for higher levels. */
+.toc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 0;
+  max-height: calc(100vh - 200px);
+  overflow: hidden;
+  cursor: pointer;
+}
+.toc-tick {
+  flex: none;
+  height: 2px;
+  width: 14px;
+  border-radius: 1px;
+  background: var(--hairline-strong);
+  transition: background 120ms var(--ease);
+}
+.toc-tick.toc-l1 {
+  width: 10px;
+}
+.toc-tick.toc-l2 {
+  width: 6px;
+}
+.toc-tick.is-active {
+  background: var(--accent);
+}
+
+/* ...which opens into the list, as a card over the text, on hover. */
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  position: absolute;
+  top: -6px;
+  left: 36px;
+  width: 260px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+  border-radius: 8px;
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 8;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-4px);
+  transition:
+    opacity 120ms var(--ease),
+    transform 120ms var(--ease),
+    visibility 0s linear 120ms;
+}
+.toc:hover .toc-list,
+.toc:focus-within .toc-list {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 140ms var(--ease) 80ms,
+    transform 140ms var(--ease) 80ms,
+    visibility 0s linear 80ms;
+}
+.toc-item {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-align: left;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.toc-item:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+.toc-item.toc-l1 {
+  padding-left: 20px;
+}
+.toc-item.toc-l2 {
+  padding-left: 32px;
+  font-size: 12px;
+}
+.toc-item.is-active {
+  color: var(--accent);
+}
+
+/* Wide: no rail, and the list sits in the column as plain text. */
+@container (min-width: 200px) {
+  .toc {
+    width: auto;
+    padding: 0 24px 0 20px;
+  }
+  .toc-rail {
+    display: none;
+  }
+  .toc-list,
+  .toc:hover .toc-list,
+  .toc:focus-within .toc-list {
+    position: static;
+    width: 100%;
+    max-width: 260px;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: none;
+  }
+  .toc-item {
+    padding: 3px 0 3px 10px;
+    border-radius: 0;
+    border-left: 1px solid var(--hairline);
+    color: var(--fg-3);
+  }
+  .toc-item:hover {
+    background: none;
+    color: var(--fg);
+  }
+  .toc-item.toc-l1 {
+    padding-left: 22px;
+  }
+  .toc-item.toc-l2 {
+    padding-left: 34px;
+  }
+  .toc-item.is-active {
+    color: var(--fg);
+    border-left-color: var(--accent);
+  }
 }
 
 /* ---- unsaved document -------------------------------------------------- */

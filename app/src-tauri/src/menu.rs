@@ -183,6 +183,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &MenuItem::with_id(app, "toggle_sidebar", "Toggle Sidebar", true, Some("CmdOrCtrl+Shift+1"))?,
             &MenuItem::with_id(app, "toggle_threads", "Toggle Comments", true, Some("CmdOrCtrl+Shift+2"))?,
             &MenuItem::with_id(app, "toggle_versions", "Versions", true, None::<&str>)?,
+            &CheckMenuItem::with_id(app, "toggle_toc", "Table of Contents", true, true, None::<&str>)?,
             &CheckMenuItem::with_id(app, "toggle_resolved", "Show Resolved Comments", true, false, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &typeface_menu,

@@ -47,7 +47,20 @@ export function applyAppearance(mode: Appearance, boot = false) {
     .catch(() => {})
 }
 
+/** Show or hide the table of contents. One choice for every window: each
+ *  applies it on boot and when another window changes it. */
+export function applyContents(show: boolean) {
+  if (show) delete document.documentElement.dataset.toc
+  else document.documentElement.dataset.toc = 'off'
+  localStorage.setItem('sidenote.toc', show ? 'on' : 'off')
+  void ipc.setMenuChecked('toggle_toc', show)
+}
+
 export function loadPreferences() {
+  applyContents(localStorage.getItem('sidenote.toc') !== 'off')
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'sidenote.toc') applyContents(e.newValue !== 'off')
+  })
   applyTypeface(localStorage.getItem('sidenote.typeface') ?? DEFAULT_TYPEFACE)
   applyAppearance((localStorage.getItem('sidenote.appearance') as Appearance | null) ?? 'system', true)
 }

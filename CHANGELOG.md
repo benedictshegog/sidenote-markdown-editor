@@ -1,5 +1,11 @@
 # Release notes
 
+## Unreleased
+
+- A table of contents sits to the left of the document and marks the section you are reading. Click a heading to jump to it. In a narrow window it folds into a rail you hover to open. Turn it off in View.
+- Clicking a link no longer opens it inside Sidenote. Web and local server links open in your browser, and links to a heading scroll to it.
+- In full screen, the sidebar button moves to the left edge.
+
 ## 0.1.33 (2026-09-23)
 
 - After an update, a small note in the corner links to what changed. Settings has the full history.

@@ -7,7 +7,7 @@ import { ask, message, open, save } from '@tauri-apps/plugin-dialog'
 import { DocumentView, type DocumentActions } from './DocumentView'
 import { DraftView, UNTITLED, type DraftActions } from './DraftView'
 import { ipc } from './ipc'
-import { applyTypeface, loadPreferences, Settings } from './Settings'
+import { applyContents, applyTypeface, loadPreferences, Settings } from './Settings'
 import { Welcome } from './Welcome'
 import { Asterisk, Recents } from './Recents'
 import { Sidebar, SidebarGlyph } from './Sidebar'
@@ -53,6 +53,15 @@ export default function App() {
   const [dropping, setDropping] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Full screen hides the traffic lights, so the tab bar drops their inset.
+  const [fullscreen, setFullscreen] = useState(false)
+  useEffect(() => {
+    const win = getCurrentWindow()
+    const check = () => void win.isFullscreen().then(setFullscreen).catch(() => {})
+    check()
+    const un = win.onResized(check)
+    return () => void un.then((f) => f())
+  }, [])
   const [welcome, setWelcome] = useState<{ needsCli: boolean; needsSkill: boolean; needsMd: boolean; intro: boolean } | null>(null)
   const [update, setUpdate] = useState<UpdateStatus | null>(null)
   const [info, setInfo] = useState<AppInfo | null>(null)
@@ -614,6 +623,9 @@ export default function App() {
           // pane there would only duplicate it.
           if (tabsRef.current.length) setSidebarOpen((v) => !v)
           return
+        case 'toggle_toc':
+          applyContents(document.documentElement.dataset.toc === 'off')
+          return
         case 'close_doc':
           if (activeRef.current) await closeTab(activeRef.current)
           return
@@ -746,7 +758,7 @@ export default function App() {
   const sideOpen = sidebarOpen && tabs.length > 0
 
   return (
-    <div className={`app ${sideOpen ? 'sidebar-open' : ''} ${info?.dev ? 'is-dev' : ''}`}>
+    <div className={`app ${sideOpen ? 'sidebar-open' : ''} ${info?.dev ? 'is-dev' : ''} ${fullscreen ? 'is-fullscreen' : ''}`}>
       <div className="sidebar-cell" aria-hidden={!sideOpen}>
         <Sidebar
           docs={docs}
