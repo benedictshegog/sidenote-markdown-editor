@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.34 (2026-10-02)
 
 - A table of contents sits to the left of the document and marks the section you are reading. Click a heading to jump to it. In a narrow window it folds into a rail you hover to open. Turn it off in View.
 - Clicking a link no longer opens it inside Sidenote. Web and local server links open in your browser, and links to a heading scroll to it.
