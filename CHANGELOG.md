@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A mermaid code block now renders as a diagram. The picture is shown by default, with a button to see or edit the source, and it follows the light and dark themes.
 - You can comment and reply while Claude holds the document lock. The editor stays read-only, but the margin does not: select text and press ⌘⇧M, or use the Comment button in the lock capsule. Resolving waits for the lock to clear.
 - A comment you were still writing when the text changed under it is closed instead of failing on send, and the toast offers to copy your words.
 

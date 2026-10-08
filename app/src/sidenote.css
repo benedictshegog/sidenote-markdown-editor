@@ -56,6 +56,11 @@
   --code-property: #0b6a70;
   --code-punctuation: #57606a;
   --code-invalid: #c0392b;
+  /* Diagram fills are opaque: Mermaid derives its palette from them with
+     colour arithmetic, which a translucent --surface would break. */
+  --diagram-fill: #f2f2f1;
+  --diagram-fill-2: #e7e7fb;
+  --diagram-stroke: #b9bcc3;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -96,6 +101,9 @@
     --code-property: #89ddff;
     --code-punctuation: #a8a8ad;
     --code-invalid: #ff6b6b;
+  --diagram-fill: #2b2b2e;
+  --diagram-fill-2: #34335a;
+  --diagram-stroke: #5a5d64;
   }
 }
 :root[data-theme='dark'] {
@@ -135,6 +143,9 @@
   --code-property: #89ddff;
   --code-punctuation: #a8a8ad;
   --code-invalid: #ff6b6b;
+  --diagram-fill: #2b2b2e;
+  --diagram-fill-2: #34335a;
+  --diagram-stroke: #5a5d64;
 }
 :root[data-theme='light'] {
   color-scheme: light;
@@ -2451,6 +2462,98 @@ html.sidenote-col-resizing * {
 }
 .sidenote-editor .milkdown .milkdown-code-block .cm-gutters {
   display: none;
+}
+
+/* diagrams (a ```mermaid fence, drawn by editor/diagrams.ts) */
+/* A torn-down block (off-screen, placeholder only) keeps the height it had
+   with its picture, so the document does not shrink under the scroll
+   position. The property is written by editor/diagrams.ts. */
+.sidenote-editor .milkdown .milkdown-code-block:has(> .milkdown-code-block-placeholder) {
+  min-height: var(--sidenote-preview-h, auto);
+}
+.sidenote-editor .milkdown .milkdown-code-block .preview-panel .preview {
+  text-align: center;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+}
+.sidenote-editor .milkdown .milkdown-code-block .preview-panel .preview-label {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.sidenote-editor .milkdown .milkdown-code-block .preview-panel .preview-divider {
+  background: var(--hairline);
+  opacity: 1;
+}
+.sidenote-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+/* Too wide to shrink legibly (editor/diagrams.ts pins its natural width):
+   the picture keeps its size and the block scrolls sideways. */
+.sidenote-diagram-wide {
+  overflow-x: auto;
+  text-align: left;
+  padding-bottom: 6px;
+}
+.sidenote-diagram-wide svg {
+  max-width: none;
+}
+/* Styling the scrollbar turns off the overlay kind, so the bar is always
+   there to say the picture continues to the right. */
+.sidenote-diagram-wide::-webkit-scrollbar {
+  height: 8px;
+}
+.sidenote-diagram-wide::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: 4px;
+}
+.sidenote-diagram-wide::-webkit-scrollbar-track {
+  background: transparent;
+}
+/* Mermaid draws labels as HTML in foreignObject, measures them in a scratch
+   div on body, and only then is the picture applied here, inside .ProseMirror.
+   The editor's paragraph rules (margin, padding, line-height) would then apply
+   at display time only, pushing every label down and out of its box. Give the
+   measuring context and the display context the same label styles. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-diagram foreignObject div,
+[id^="dsidenote-diagram-"] foreignObject div {
+  line-height: 1.25;
+  letter-spacing: normal;
+}
+.sidenote-editor .milkdown .ProseMirror .sidenote-diagram foreignObject p,
+[id^="dsidenote-diagram-"] foreignObject p {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+.sidenote-diagram-loading {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg-3);
+  padding: 20px 0;
+}
+.sidenote-diagram-error {
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--fg-2);
+  padding: 8px 12px;
+}
+.sidenote-diagram-error-title {
+  display: block;
+  color: var(--code-invalid);
+  margin-bottom: 4px;
+}
+.sidenote-diagram-error pre {
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--fg-3);
 }
 
 /* floating ui: toolbar, slash menu, block handle, link tooltip */

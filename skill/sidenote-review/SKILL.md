@@ -27,7 +27,7 @@ Exit codes of `sidenote`:
 
 ## Entry point A: put a document up for review
 
-1. Write the markdown where it belongs (a repo plan, a Projects directory, the Desktop).
+1. Write the markdown where it belongs (a repo plan, a Projects directory, the Desktop). Diagrams go in as Mermaid (see "Diagrams").
 2. `sidenote register "<file.md>" --open`. This assigns an id, takes snapshot v001, records this session as owner and opens the app on the file.
 3. Arm the monitor, once per session, if not already armed (see "Monitor").
 4. End the turn. Tell the user, in one sentence, that the document is open in Sidenote and comments come straight here.
@@ -147,6 +147,17 @@ The app shows the user where you are, on the comment highlights themselves: a th
 - **Ack early.** The marker appears when you ack, so acking first is what tells the user which paragraphs to leave alone.
 - **The lock covers the file, not the margin.** While you hold `lock`, the editor is read-only but the user can still comment and reply. A thread can land on a passage you are rewriting. `turn end` re-anchors it and exits 4; if your rewrite removed its words it is orphaned, so `sidenote anchor` it when you answer.
 - In suggesting mode they are never locked at all: nothing is written, so `apply` takes no lock.
+
+## Diagrams
+
+The app renders a ```` ```mermaid ```` fence as a diagram: flowcharts, sequence, state and class diagrams, Gantt charts. The reader sees the picture; a button in the block's header shows the source. Use one where a picture explains structure better than prose would: a pipeline, a state machine, who calls whom.
+
+- The diagram is plain Mermaid text in the file. No image files, no SVG. It diffs, snapshots and re-anchors like any other paragraph.
+- Comments can land on the source. The `exact` text in a comment event may be a Mermaid line; answer it by editing that line with `sidenote apply`, as for prose.
+- **Design for the column.** The document is about 600px wide. A wider picture is shrunk to fit, down to 80 percent; past that it keeps its size and scrolls sideways. Neither reads well, so build narrow: flowcharts top-down (`flowchart TD`), never more than three or four shapes side by side; sequence diagrams with at most four participants; labels of one to four words, with `<br/>` to break a longer one onto two lines. Prefer two small diagrams with a sentence between them over one large one.
+- Keep the source short and the labels plain. A diagram that needs a legend is two diagrams.
+- No styling in the source (`style`, `classDef`, `linkStyle`, `%%{init}%%`, `theme`). The app colours the picture to match its light and dark themes and the reader's typeface; a styled diagram breaks in one of them.
+- Mermaid runs with its strict security level: no click handlers, no HTML in labels, no remote images or icons. A syntax error shows in the block with the first error line; fix the source rather than falling back to a code block.
 
 ## Rules
 
