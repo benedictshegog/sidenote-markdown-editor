@@ -1,5 +1,10 @@
 # Release notes
 
+## Unreleased
+
+- You can comment and reply while Claude holds the document lock. The editor stays read-only, but the margin does not: select text and press ⌘⇧M, or use the Comment button in the lock capsule. Resolving waits for the lock to clear.
+- A comment you were still writing when the text changed under it is closed instead of failing on send, and the toast offers to copy your words.
+
 ## 0.1.34 (2026-10-02)
 
 - A table of contents sits to the left of the document and marks the section you are reading. Click a heading to jump to it. In a narrow window it folds into a rail you hover to open. Turn it off in View.

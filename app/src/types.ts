@@ -172,3 +172,9 @@ export interface AppInfo {
   /** The WebSocket port the CLI must dial to reach this app. */
   port: number
 }
+
+/** A button on a toast, for the one thing the reader may want to do about it. */
+export interface ToastAction {
+  label: string
+  run: () => void
+}

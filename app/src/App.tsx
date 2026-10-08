@@ -14,7 +14,7 @@ import { Sidebar, SidebarGlyph } from './Sidebar'
 import { dismiss, dismissed, UpdateBar } from './Update'
 import { ReleaseNotes, WhatsNewPill } from './WhatsNew'
 import { takeUpdatedFrom } from './releaseNotes'
-import type { AppInfo, DocEntry, UpdateStatus } from './types'
+import type { AppInfo, DocEntry, ToastAction, UpdateStatus } from './types'
 
 const TABS_KEY = 'sidenote.tabs'
 
@@ -49,7 +49,8 @@ export default function App() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   // Starts closed; opens only when there is nothing to show, after startup.
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ text: string; action?: ToastAction } | null>(null)
+  const toastTimer = useRef<number | null>(null)
   const [dropping, setDropping] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -85,9 +86,11 @@ export default function App() {
   const tabActions = (id: string | null) =>
     id ? (actions.current.get(id) ?? drafts.current.get(id) ?? null) : null
 
-  const showToast = useCallback((t: string) => {
-    setToast(t)
-    window.setTimeout(() => setToast(null), 2600)
+  const showToast = useCallback((text: string, action?: ToastAction) => {
+    setToast({ text, action })
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    // One with a button has to stay long enough to be read and clicked.
+    toastTimer.current = window.setTimeout(() => setToast(null), action ? 8000 : 2600)
   }, [])
 
   const refreshDocs = useCallback(async () => {
@@ -897,7 +900,16 @@ export default function App() {
           />
         )}
 
-        {toast && <div className="toast">{toast}</div>}
+        {toast && (
+          <div className="toast">
+            <span>{toast.text}</span>
+            {toast.action && (
+              <button type="button" className="toast-action" onClick={toast.action.run}>
+                {toast.action.label}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {dropping && (

@@ -18,6 +18,7 @@ import {
   isUnread,
   type DocEntry,
   type ListenerStatus,
+  type ToastAction,
   type StateView,
   type Suggestion,
   type Thread,
@@ -120,7 +121,7 @@ export interface DocumentActions {
 interface Props {
   doc: DocEntry;
   active: boolean;
-  onToast: (t: string) => void;
+  onToast: (t: string, action?: ToastAction) => void;
   /** The document was relinked to a new path; the shell updates the tab. */
   onDocChanged: (doc: DocEntry) => void;
   /** Put the cursor in the page once it is up. Set for a draft that has just
@@ -150,6 +151,11 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     const [unanchored, setUnanchored] = useState<Set<string>>(new Set());
     const [selected, setSelected] = useState<string | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
+    const draftRef = useRef<Draft | null>(null);
+    draftRef.current = draft;
+    /** What has been typed into the draft so far. Kept here, not in the
+     *  composer, so a draft closed from outside can hand the words back. */
+    const draftBody = useRef("");
     const [stateView, setStateView] = useState<StateView | null>(null);
     const [listeners, setListeners] = useState<ListenerStatus | null>(null);
     const [panelForced, setPanelForced] = useState<boolean | null>(null);
@@ -459,6 +465,31 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
     // ---- disk changes -------------------------------------------------------
 
+    /** Close a comment still being written because the text it was about has
+     *  been replaced (Claude's edit landed, or another editor wrote the file).
+     *  Replacing the content drops the draft mark, so there is nothing left to
+     *  attach it to. The words can take a minute to write, so hand them back. */
+    const dropDraft = useCallback(() => {
+      if (!draftRef.current) return;
+      const body = draftBody.current.trim();
+      editor.current?.cancelDraft();
+      setDraft(null);
+      draftBody.current = "";
+      if (!body) {
+        onToast("The text changed under your comment. Select it again.");
+        return;
+      }
+      onToast("The text changed under your comment. Select it again to post it.", {
+        label: "Copy comment",
+        run: () => {
+          void navigator.clipboard
+            .writeText(body)
+            .then(() => onToast("Comment copied."))
+            .catch(() => onToast("Could not copy."));
+        },
+      });
+    }, [onToast]);
+
     const runReload = useCallback(
       async (plan?: Reload) => {
         const cur = loadedRef.current;
@@ -488,6 +519,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
               // suggestion the user had already accepted.
               accepts.current = [];
               editor.current?.setMarkdown(md);
+              dropDraft();
               requestAnimationFrame(() => {
                 if (main) main.scrollTop = top;
                 setRevision((r) => r + 1);
@@ -509,7 +541,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
         if (p.threads) await refreshThreads();
         if (p.suggestions) await refreshSuggestions();
       },
-      [refreshState, refreshThreads, refreshSuggestions, showSource],
+      [dropDraft, refreshState, refreshThreads, refreshSuggestions, showSource],
     );
 
     const scheduleReload = useCallback(() => {
@@ -874,11 +906,10 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
     // ---- comments -----------------------------------------------------------
 
+    // Not gated on the lock. The lock covers the markdown file; a comment
+    // goes to threads.json, which Claude only reads. One written while
+    // Claude edits is re-anchored at `turn end` and served on its next turn.
     const requestComment = useCallback(() => {
-      if (busyRef.current) {
-        onToast("Claude is editing; wait for the lock to clear.");
-        return;
-      }
       const quote = editor.current?.beginDraft();
       if (!quote) {
         onToast("Select some text first.");
@@ -893,6 +924,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     const cancelDraft = useCallback(() => {
       editor.current?.cancelDraft();
       setDraft(null);
+      draftBody.current = "";
       editor.current?.focus();
     }, []);
 
@@ -907,10 +939,14 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
           cancelDraft();
           return;
         }
-        if (pendingMarkdown.current !== null) await flushNow();
+        // Under the lock the core refuses the write, and there is nothing
+        // pending anyway: the editor is read-only and the lock flushed it.
+        if (pendingMarkdown.current !== null && !busyRef.current)
+          await flushNow();
         const t = await ipc.createThread(cur.doc.id, sel, body);
         editor.current.commitDraft(t.id);
         setDraft(null);
+        draftBody.current = "";
         setPanelForced(null);
         setThreads((ts) => [...ts, t]);
         setSelected(t.id);
@@ -1483,6 +1519,20 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                 {" · "}
                 {formatDuration(heldSecs)}
               </span>
+              {/* Crepe hides its selection toolbar, Comment button included,
+                  while the editor is read-only, so the capsule carries one.
+                  mousedown is swallowed so the click does not take the
+                  selection with it. */}
+              <button
+                type="button"
+                className="btn-link"
+                disabled={!hasSelection}
+                title="Comment on the selected text (⌘⇧M)"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={requestComment}
+              >
+                Comment
+              </button>
               <button
                 type="button"
                 className="btn-link"
@@ -1629,12 +1679,15 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                   selected={selected}
                   showResolved={showResolved}
                   draft={draft}
-                  readonly={busy}
+                  canResolve={!busy}
                   canvasRef={canvasRef}
                   revision={revision}
                   onSelect={selectThread}
                   onSubmitDraft={(b) => void submitDraft(b)}
                   onCancelDraft={cancelDraft}
+                  onDraftChange={(b) => {
+                    draftBody.current = b;
+                  }}
                   onReply={(id, b) => void reply(id, b)}
                   onSetStatus={(id, s) => void setStatus(id, s)}
                   onRelocate={(id) => void relocate(id)}

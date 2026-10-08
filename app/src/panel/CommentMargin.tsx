@@ -18,7 +18,10 @@ interface Props {
   selected: string | null
   showResolved: boolean
   draft: Draft | null
-  readonly: boolean
+  /** Resolving is off while Claude holds the lock: it may be answering the
+   *  thread right now. Comments and replies are never off; they live in
+   *  threads.json, which the lock does not cover. */
+  canResolve: boolean
   /** Contains the editor and this margin; anchors are measured against it. */
   canvasRef: RefObject<HTMLElement | null>
   /** Bumped whenever the document may have reflowed. */
@@ -26,6 +29,9 @@ interface Props {
   onSelect: (id: string | null) => void
   onSubmitDraft: (body: string) => void
   onCancelDraft: () => void
+  /** Every keystroke in the draft, so the words survive if the draft is
+   *  closed from outside (the text changed under it). */
+  onDraftChange: (body: string) => void
   onReply: (id: string, body: string) => void
   onSetStatus: (id: string, status: 'open' | 'resolved') => void
   onRelocate: (id: string) => void
@@ -77,12 +83,14 @@ function Composer({
   autoFocus,
   onSubmit,
   onCancel,
+  onChange,
   submitLabel,
 }: {
   placeholder: string
   autoFocus?: boolean
   onSubmit: (body: string) => void
   onCancel?: () => void
+  onChange?: (value: string) => void
   submitLabel: string
 }) {
   const [value, setValue] = useState('')
@@ -109,11 +117,13 @@ function Composer({
     if (!body) return
     onSubmit(body)
     setValue('')
+    onChange?.('')
     setActive(!!autoFocus)
   }
 
   const cancel = () => {
     setValue('')
+    onChange?.('')
     setActive(!!autoFocus)
     if (onCancel) onCancel()
     else ref.current?.blur()
@@ -130,7 +140,10 @@ function Composer({
         onBlur={() => {
           if (!value.trim() && !autoFocus) setActive(false)
         }}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value)
+          onChange?.(e.target.value)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
@@ -304,7 +317,7 @@ function Card({
   top,
   orphaned,
   active,
-  readonly,
+  canResolve,
   measured,
   register,
   onSelect,
@@ -319,7 +332,7 @@ function Card({
   top: number
   orphaned: boolean
   active: boolean
-  readonly: boolean
+  canResolve: boolean
   measured: boolean
   register: (id: string, el: HTMLElement | null) => void
   onSelect: () => void
@@ -369,7 +382,7 @@ function Card({
               {isUnread(thread) && !active && (
                 <span className="ccard-unread" title="Claude has replied since you last opened this" />
               )}
-              {!resolved && !readonly && (
+              {!resolved && canResolve && (
                 <button
                   type="button"
                   className="ccard-resolve"
@@ -441,7 +454,7 @@ function Card({
         </div>
       )}
       {suggestion && !resolved && <Decide suggestion={suggestion} onDecide={onDecide} />}
-      {active && !resolved && !readonly && (
+      {active && !resolved && (
         <div className="ccard-reply">
           <Avatar author="user" small />
           <Composer placeholder="Reply" onSubmit={onReply} submitLabel="Reply" />
@@ -673,6 +686,7 @@ export function CommentMargin(props: Props) {
                 submitLabel="Comment"
                 onSubmit={props.onSubmitDraft}
                 onCancel={props.onCancelDraft}
+                onChange={props.onDraftChange}
               />
             </div>
           </div>
@@ -684,7 +698,7 @@ export function CommentMargin(props: Props) {
             top={tops.get(t.id) ?? 0}
             orphaned={t.status === 'orphaned' || unanchored.has(t.id)}
             active={selected === t.id && !draft}
-            readonly={props.readonly}
+            canResolve={props.canResolve}
             measured={heights.has(t.id)}
             register={register}
             onSelect={() => props.onSelect(t.id)}

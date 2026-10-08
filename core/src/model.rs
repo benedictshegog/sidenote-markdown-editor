@@ -155,7 +155,8 @@ impl Thread {
 /// `~/.sidenote/docs/<id>/state.json`
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct StateFile {
-    /// Set by `sidenote lock` while Claude edits the file; the app is read-only.
+    /// Set by `sidenote lock` while Claude edits the file; the app's editor is
+    /// read-only. Comments and replies still flow: they live in threads.json.
     pub busy: bool,
     #[serde(default)]
     pub busy_since: Option<String>,

@@ -1238,6 +1238,12 @@ button {
 .busy-capsule .btn-link {
   font-size: 12px;
 }
+.busy-capsule .btn-link:disabled {
+  opacity: 0.45;
+}
+.busy-capsule .btn-link:disabled:hover {
+  text-decoration: none;
+}
 .busy-stale {
   color: var(--accent);
 }
@@ -1294,6 +1300,20 @@ button {
   font-size: 12px;
   z-index: 20;
   animation: toast-in 150ms var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+.toast-action {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+}
+.toast-action:hover {
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
 }
 /* Opacity only. This is shared by the sheet backdrop, the
    popover and the busy capsule; a transform here slid every one of them

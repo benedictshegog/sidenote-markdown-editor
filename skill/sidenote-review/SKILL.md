@@ -145,6 +145,7 @@ The app shows the user where you are, on the comment highlights themselves: a th
 
 - **The document moves under you.** Read the diff `turn begin` prints, and expect exit 6 from `apply` when the user has rewritten the passage you were about to change. That is the system working: re-read and redo the edit, do not force it.
 - **Ack early.** The marker appears when you ack, so acking first is what tells the user which paragraphs to leave alone.
+- **The lock covers the file, not the margin.** While you hold `lock`, the editor is read-only but the user can still comment and reply. A thread can land on a passage you are rewriting. `turn end` re-anchors it and exits 4; if your rewrite removed its words it is orphaned, so `sidenote anchor` it when you answer.
 - In suggesting mode they are never locked at all: nothing is written, so `apply` takes no lock.
 
 ## Rules

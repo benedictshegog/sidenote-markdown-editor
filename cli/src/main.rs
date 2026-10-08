@@ -555,7 +555,7 @@ fn run(cli: Cli) -> Result<i32, SidenoteError> {
         }
         Cmd::Lock { file, wait } => {
             let r = store.lock(&file.file, &session(), Duration::from_secs_f64(wait.max(0.0)))?;
-            println!("locked {}; the app is read-only until `sidenote turn end`.", r.doc.path);
+            println!("locked {}; the editor is read-only until `sidenote turn end` (the user can still comment).", r.doc.path);
             print_suggesting(&r);
             match (&r.snapshot, r.diff.is_empty()) {
                 (Some(s), false) => {
