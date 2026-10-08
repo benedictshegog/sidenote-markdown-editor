@@ -19,6 +19,7 @@ import { ipc } from "../ipc";
 import { openExternally } from "../links";
 import type { ApplyResult, Selector, Suggestion, Thread } from "../types";
 import { codeTheme } from "./codeTheme";
+import { DIAGRAM_LOADING, renderDiagram } from "./diagrams";
 import { commentMark, DRAFT_ID } from "./commentMark";
 import {
   presencePlugin,
@@ -322,7 +323,16 @@ export const Editor = forwardRef<EditorHandle, Props>(
           // constructor never reads it (checked in 7.22.1).
           [Crepe.Feature.Placeholder]: { text: "Start writing…", mode: "doc" },
           [Crepe.Feature.Cursor]: { virtual: false },
-          [Crepe.Feature.CodeMirror]: { theme: codeTheme },
+          // A ```mermaid fence renders as a diagram above its source, and
+          // shows the picture alone until the reader asks for the source.
+          [Crepe.Feature.CodeMirror]: {
+            theme: codeTheme,
+            renderPreview: renderDiagram,
+            previewOnlyByDefault: true,
+            previewLabel: "Diagram",
+            previewLoading: DIAGRAM_LOADING,
+            previewToggleText: (previewOnly) => (previewOnly ? "Source" : "Hide source"),
+          },
           // proxyDomURL runs on the URL as the node view mounts, so the markdown
           // keeps the path the file actually says and only the DOM sees the blob.
           // The one ImageBlock feature owns both the block and the inline image.

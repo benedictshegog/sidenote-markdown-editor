@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- A mermaid code block now renders as a diagram. The picture is shown by default, with a button to see or edit the source, and it follows the light and dark themes.
+
 ## 0.1.34 (2026-10-02)
 
 - A table of contents sits to the left of the document and marks the section you are reading. Click a heading to jump to it. In a narrow window it folds into a rail you hover to open. Turn it off in View.
