@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.35 (2026-10-08)
 
 - A mermaid code block now renders as a diagram. The picture is shown by default, with a button to see or edit the source, and it follows the light and dark themes.
 - You can comment and reply while Claude holds the document lock. The editor stays read-only, but the margin does not: select text and press ⌘⇧M, or use the Comment button in the lock capsule. Resolving waits for the lock to clear.
