@@ -25,7 +25,19 @@ import {
 } from "@milkdown/kit/prose/model";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 
-const BLOCK_MARGIN = "margin:0";
+// Every block states its own margin, and its own colour.
+//
+// The margin is for mail clients, as above. The colour is for WebKit. The
+// markup given to `setData` is not what reaches the pasteboard: WebKit
+// re-serialises it against the live selection and annotates each top-level
+// element with the copy context's computed style, which in dark mode starts
+// `color: rgb(255, 255, 255)`. Pasted into Gmail's compose window that is
+// white text on a white page. The annotation is written ahead of the
+// element's own declarations, so `color: inherit` here has the last word and
+// the text takes the colour of wherever it lands. `caret-color` rides along
+// in the same annotation, and a white caret in a white compose window is the
+// same bug with a smaller blast radius.
+const BLOCK_STYLE = "margin:0;color:inherit;caret-color:auto";
 
 /** Marks the separator paragraphs so a paste back into the editor can drop them. */
 const GAP_ATTR = "data-sidenote-gap";
@@ -41,19 +53,21 @@ function isAttrs(v: unknown): v is Record<string, unknown> {
   );
 }
 
-/** Add `margin:0` to the element a block node's spec produces. */
-function withMargin(spec: DOMOutputSpec): DOMOutputSpec {
+/** Add `BLOCK_STYLE` to the element a block node's spec produces. */
+function withBlockStyle(spec: DOMOutputSpec): DOMOutputSpec {
   if (Array.isArray(spec)) {
     const [tag, second, ...rest] = spec as unknown[];
     if (isAttrs(second)) {
-      const style = second.style ? `${second.style};${BLOCK_MARGIN}` : BLOCK_MARGIN;
+      const style = second.style ? `${second.style};${BLOCK_STYLE}` : BLOCK_STYLE;
       return [tag, { ...second, style }, ...rest] as DOMOutputSpec;
     }
     const tail = second === undefined ? rest : [second, ...rest];
-    return [tag, { style: BLOCK_MARGIN }, ...tail] as unknown as DOMOutputSpec;
+    return [tag, { style: BLOCK_STYLE }, ...tail] as unknown as DOMOutputSpec;
   }
   if (spec instanceof HTMLElement) {
     spec.style.margin = "0";
+    spec.style.color = "inherit";
+    spec.style.caretColor = "auto";
   } else if (
     typeof spec === "object" &&
     spec !== null &&
@@ -61,6 +75,8 @@ function withMargin(spec: DOMOutputSpec): DOMOutputSpec {
     spec.dom instanceof HTMLElement
   ) {
     spec.dom.style.margin = "0";
+    spec.dom.style.color = "inherit";
+    spec.dom.style.caretColor = "auto";
   }
   return spec;
 }
@@ -98,7 +114,7 @@ function separateBlocks(root: ParentNode): void {
     const prev = blocks[i - 1];
     if (!isBlock(prev) || !isBlock(blocks[i]) || isHeading(prev)) continue;
     const gap = doc.createElement("p");
-    gap.setAttribute("style", BLOCK_MARGIN);
+    gap.setAttribute("style", BLOCK_STYLE);
     gap.setAttribute(GAP_ATTR, "");
     gap.innerHTML = "&nbsp;";
     root.insertBefore(gap, blocks[i]);
@@ -111,7 +127,7 @@ export class ClipboardSerializer extends DOMSerializer {
     const nodes: Record<string, Spec> = {};
     for (const [name, spec] of Object.entries(base.nodes)) {
       nodes[name] = schema.nodes[name]?.isBlock
-        ? (node) => withMargin(spec(node))
+        ? (node) => withBlockStyle(spec(node))
         : spec;
     }
     return new ClipboardSerializer(nodes, base.marks);

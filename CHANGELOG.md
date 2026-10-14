@@ -3,6 +3,7 @@
 ## Unreleased
 
 - An edit from Claude that starts with a list marker, a heading or a quote lands as words again. It no longer nests itself inside the list item it was meant to replace, leaving a blank line and the number twice.
+- Text copied out of Sidenote in dark mode is no longer white when you paste it. It takes the colour of wherever it lands, and keeps its bold, italics, links, headings and lists.
 
 ## 0.1.35 (2026-10-08)
 
