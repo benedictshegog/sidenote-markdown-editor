@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- An edit from Claude that starts with a list marker, a heading or a quote lands as words again. It no longer nests itself inside the list item it was meant to replace, leaving a blank line and the number twice.
+
 ## 0.1.35 (2026-10-08)
 
 - A mermaid code block now renders as a diagram. The picture is shown by default, with a button to see or edit the source, and it follows the light and dark themes.

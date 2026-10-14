@@ -3,14 +3,13 @@ import { Crepe } from "@milkdown/crepe";
 import {
   editorViewCtx,
   editorViewOptionsCtx,
-  parserCtx,
   remarkStringifyOptionsCtx,
 } from "@milkdown/kit/core";
 import type { Ctx } from "@milkdown/kit/ctx";
 import { remarkGFMPlugin } from "@milkdown/kit/preset/gfm";
 import { $prose, replaceAll } from "@milkdown/kit/utils";
 import type { EditorView } from "@milkdown/kit/prose/view";
-import { Slice, type Mark, type NodeType } from "@milkdown/kit/prose/model";
+import { type Mark, type NodeType } from "@milkdown/kit/prose/model";
 import { setBlockType } from "@milkdown/kit/prose/commands";
 import { redo, undo } from "@milkdown/kit/prose/history";
 import { imageBlockSchema } from "@milkdown/kit/component/image-block";
@@ -35,11 +34,8 @@ import {
 import { findKey, findPlugin, setFindMeta } from "./find";
 import { ClipboardSerializer, clipboardPlugin } from "./clipboard";
 import { tableResizePlugin } from "./tableResize";
-import {
-  definedLabels,
-  footnotePlugin,
-  parseWithFootnotes,
-} from "./footnotes";
+import { footnotePlugin } from "./footnotes";
+import { applyEditIn, findOnce } from "./applyEdit";
 import { TextMap } from "./textmap";
 import { normaliseMarkdown, stringifyOptions } from "./normalise";
 import { ImageResolver } from "./images";
@@ -145,54 +141,6 @@ const BLOCK_TYPES: {
   { key: "h2", label: "Heading 2", icon: glyphIcon("H2", 11.5), level: 2 },
   { key: "h3", label: "Heading 3", icon: glyphIcon("H3", 11.5), level: 3 },
 ];
-
-/**
- * Where `needle` occurs exactly once in `text`, as `[start, end]`; otherwise
- * the number of hits. A second pass ignores runs of whitespace, because the
- * markdown in the file wraps lines where the editor shows one space.
- */
-function findOnce(text: string, needle: string): [number, number] | number {
-  if (!needle) return 0;
-  const exact = countHits(text, needle);
-  if (exact.length === 1) return [exact[0], exact[0] + needle.length];
-  if (exact.length > 1) return exact.length;
-  // Collapse whitespace on both sides, keeping a map back to the original.
-  const back: number[] = [];
-  let squashed = "";
-  let space = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (/\s/.test(c)) {
-      if (!space && squashed.length) {
-        squashed += " ";
-        back.push(i);
-      }
-      space = true;
-    } else {
-      squashed += c;
-      back.push(i);
-      space = false;
-    }
-  }
-  const wanted = needle.trim().replace(/\s+/g, " ");
-  if (!wanted) return 0;
-  const loose = countHits(squashed, wanted);
-  if (loose.length !== 1) return loose.length;
-  const a = back[loose[0]];
-  const b = back[loose[0] + wanted.length - 1] + 1;
-  return [a, b];
-}
-
-function countHits(text: string, needle: string): number[] {
-  const hits: number[] = [];
-  if (!needle) return hits; // indexOf('') never returns -1
-  let i = text.indexOf(needle);
-  while (i >= 0) {
-    hits.push(i);
-    i = text.indexOf(needle, i + 1);
-  }
-  return hits;
-}
 
 /** The heading level of the block the selection starts in; 0 for a paragraph, -1 for anything else. */
 function blockLevel(view: EditorView): number {
@@ -595,82 +543,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
           return { ok: false, error: "not_ready" };
         let out: ApplyResult = { ok: false, error: "not_ready" };
         crepe.editor.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          const map = new TextMap(view.state.doc);
-          const hit = findOnce(map.text, old);
-          if (typeof hit === "number") {
-            out = { ok: false, error: "stale", found: hit };
-            return;
-          }
-          const from = map.indexToPos(hit[0], "start");
-          const to = map.indexToPos(hit[1], "end");
-          if (from === null || to === null || to < from) {
-            out = { ok: false, error: "stale", found: 0 };
-            return;
-          }
-          const { doc } = view.state;
-          const $from = doc.resolve(from);
-          const $to = doc.resolve(to);
-          // Comment marks on the passage, to carry onto the new text.
-          const carried = new Set<string>();
-          doc.nodesBetween(from, to, (node) => {
-            for (const m of node.marks) {
-              if (m.type === markType(view) && m.attrs.id !== DRAFT_ID)
-                carried.add(m.attrs.id as string);
-            }
-          });
-          // Parsed on its own, `[^1]` would lose its definition and be saved
-          // as `\[^1]`; see footnotes.ts.
-          const parsed = next.trim()
-            ? parseWithFootnotes(next, definedLabels(doc), ctx.get(parserCtx))
-            : null;
-          const tr = view.state.tr;
-          // Whole blocks replaced by whole blocks keep their block types (a
-          // heading stays a heading). Anything else is an inline splice: the
-          // fragment's edges merge into the paragraph around the passage, the
-          // way replacing text in the file splits or joins the surrounding
-          // paragraph.
-          const wholeBlocks =
-            $from.parent.isTextblock &&
-            $to.parent.isTextblock &&
-            $from.parentOffset === 0 &&
-            $to.parentOffset === $to.parent.content.size;
-          if (!parsed) {
-            if (wholeBlocks) {
-              // Deleting the only block of a list item (or any wrapper) takes
-              // the wrapper with it; an empty item would serialise as `<br />`.
-              let d = $from.depth;
-              while (
-                d > 1 &&
-                $from.node(d - 1).childCount === 1 &&
-                $from.sameParent($to)
-              )
-                d--;
-              tr.delete($from.before(d), $to.after(d));
-            } else {
-              tr.delete(from, to);
-            }
-          } else if (wholeBlocks) {
-            tr.replaceRange(
-              $from.before(),
-              $to.after(),
-              new Slice(parsed.content, 0, 0),
-            );
-          } else {
-            tr.replaceRange(from, to, new Slice(parsed.content, 1, 1));
-          }
-          const start = wholeBlocks && parsed ? $from.before() : from;
-          const end = tr.mapping.map(wholeBlocks ? $to.after() : to);
-          if (parsed && end > start) {
-            const type = markType(view);
-            for (const id of carried)
-              tr.addMark(start, end, type.create({ id }));
-          }
-          tr.setMeta("sidenote-apply", true);
-          view.dispatch(tr);
-          const landed =
-            parsed && end > start ? tr.doc.textBetween(start, end, "\n") : "";
-          out = { ok: true, landed };
+          out = applyEditIn(ctx, old, next);
         });
         return out;
       },
