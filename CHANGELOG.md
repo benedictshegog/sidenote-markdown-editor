@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.37 (2026-10-16)
 
 - A space left at the end of a line, typed or pasted, no longer shows up in the file as `&#x20;`.
 
