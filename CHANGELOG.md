@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- A space left at the end of a line, typed or pasted, no longer shows up in the file as `&#x20;`.
+
 ## 0.1.36 (2026-10-14)
 
 - An edit from Claude that starts with a list marker, a heading or a quote lands as words again. It no longer nests itself inside the list item it was meant to replace, leaving a blank line and the number twice.
