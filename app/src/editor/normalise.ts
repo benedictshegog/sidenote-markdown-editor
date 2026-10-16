@@ -52,6 +52,10 @@ export function normaliseMarkdown(md: string): string {
     let l = line.replace(AUTOLINK, '$1')
     // remark escapes & and _ defensively; neither needs it in running text.
     l = l.replace(/\\&/g, '&')
+    // A space typed or pasted at the end of a line changes nothing on screen,
+    // but remark keeps it as `&#x20;`. Drop it with any spaces before it, so
+    // they cannot turn into a hard break once the entity is gone.
+    l = l.replace(/[ \t]*(?:&#x(?:20|9);)+$/, '')
     if (l.trimStart().startsWith('|')) {
       // Empty cells come back as <br />.
       l = l.replace(/\|\s*<br\s*\/?>\s*(?=\|)/g, '| ')
