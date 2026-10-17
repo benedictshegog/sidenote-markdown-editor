@@ -250,6 +250,23 @@ button {
 .docview.margin-open .canvas {
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--doc-w)) minmax(var(--margin-w), 1fr);
 }
+/* Full width (View > Full Width, per document): the text column fills the
+   pane, the way Notion's page option does. The side columns shrink to a
+   gutter that, with the document's own 48px padding, keeps the text 96px
+   from each edge on a wide window and less on a narrow one; the contents
+   list folds into its rail there. An open comment margin keeps its width,
+   so cards never sit over the text. Tables take the wider column like any
+   other block and scroll only past it. */
+.docview.full-width .canvas {
+  --gutter: clamp(0px, calc(8vw - 48px), 48px);
+  grid-template-columns: var(--gutter) minmax(0, 1fr) var(--gutter);
+}
+.docview.full-width.margin-open .canvas {
+  grid-template-columns: var(--gutter) minmax(0, 1fr) var(--margin-w);
+}
+.docview.full-width .sidenote-editor .milkdown .ProseMirror {
+  max-width: none;
+}
 .workspace > .main {
   position: absolute;
   top: var(--title-h);

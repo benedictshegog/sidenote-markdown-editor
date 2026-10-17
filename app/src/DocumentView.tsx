@@ -106,6 +106,28 @@ function dismissCoach(set: (v: boolean) => void) {
   }
 }
 
+// Full width is a way of looking at one document, like Notion's page
+// option: each document remembers its own, in the app's storage and never in
+// the file, keyed by path the way table column widths are.
+const FULL_WIDTH_PREFIX = "sidenote.fullWidth:";
+
+function readFullWidth(path: string): boolean {
+  try {
+    return localStorage.getItem(FULL_WIDTH_PREFIX + path) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeFullWidth(path: string, on: boolean) {
+  try {
+    if (on) localStorage.setItem(FULL_WIDTH_PREFIX + path, "1");
+    else localStorage.removeItem(FULL_WIDTH_PREFIX + path);
+  } catch {
+    /* the setting still holds until the tab closes */
+  }
+}
+
 export function connectPrompt(path: string): string {
   return `Connect to "${path}" in Sidenote and handle its comments.`;
 }
@@ -161,6 +183,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     const [panelForced, setPanelForced] = useState<boolean | null>(null);
     const [showResolved, setShowResolved] = useState(false);
     const [showSource, setShowSource] = useState(false);
+    const [fullWidth, setFullWidth] = useState(() => readFullWidth(doc.path));
     const [source, setSource] = useState("");
     const [hasSelection, setHasSelection] = useState(false);
     const [copyMenu, setCopyMenu] = useState(false);
@@ -807,6 +830,23 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
       void ipc.setMenuChecked("toggle_suggesting", suggesting);
     }, [active, loaded, suggesting]);
 
+    // A relinked document takes the setting stored for its new path.
+    useEffect(() => {
+      setFullWidth(readFullWidth(doc.path));
+    }, [doc.path]);
+
+    useEffect(() => {
+      if (!active || !loaded) return;
+      void ipc.setMenuChecked("full_width", fullWidth);
+    }, [active, loaded, fullWidth]);
+
+    const toggleFullWidth = useCallback(() => {
+      setFullWidth((v) => {
+        writeFullWidth(docRef.current.path, !v);
+        return !v;
+      });
+    }, []);
+
     const toggleSuggesting = useCallback(async () => {
       const cur = loadedRef.current;
       if (!cur) return;
@@ -1191,6 +1231,9 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             case "toggle_resolved":
               setShowResolved((v) => !v);
               return true;
+            case "full_width":
+              toggleFullWidth();
+              return true;
             case "show_source":
               if (cur) setSource(editor.current?.getMarkdown() ?? cur.markdown);
               setShowSource((v) => !v);
@@ -1236,6 +1279,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
         decideAll,
         suggestions.length,
         toggleSuggesting,
+        toggleFullWidth,
         find,
         flushNow,
         missing,
@@ -1326,7 +1370,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
     return (
       <div
-        className={`docview ${sideOpen ? "panel-open" : ""} ${marginOpen ? "margin-open" : ""}`}
+        className={`docview ${sideOpen ? "panel-open" : ""} ${marginOpen ? "margin-open" : ""} ${fullWidth ? "full-width" : ""}`}
         hidden={!active}
       >
         <div className="pill">
@@ -1450,6 +1494,19 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                 </div>
               )}
             </span>
+          )}
+          {loaded && (
+            <button
+              type="button"
+              className={`pill-btn ${fullWidth ? "is-on" : ""}`}
+              title={`${fullWidth ? "Reading width" : "Full width"} (⇧⌘F)`}
+              onClick={toggleFullWidth}
+            >
+              {/* Arrows out to two edges: the page widening to the window. */}
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path d="M3 5h2v14H3zm16 0h2v14h-2zM7 12l4-4v3h2V8l4 4-4 4v-3h-2v3z" />
+              </svg>
+            </button>
           )}
           {loaded && (
             <button

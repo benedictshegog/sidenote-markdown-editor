@@ -185,6 +185,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             &MenuItem::with_id(app, "toggle_versions", "Versions", true, None::<&str>)?,
             &CheckMenuItem::with_id(app, "toggle_toc", "Table of Contents", true, true, None::<&str>)?,
             &CheckMenuItem::with_id(app, "toggle_resolved", "Show Resolved Comments", true, false, None::<&str>)?,
+            // Per document, like Suggesting: the UI sets the tick for the
+            // document in front.
+            &CheckMenuItem::with_id(app, "full_width", "Full Width", true, false, Some("CmdOrCtrl+Shift+F"))?,
             &PredefinedMenuItem::separator(app)?,
             &typeface_menu,
             &PredefinedMenuItem::separator(app)?,
