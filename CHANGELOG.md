@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.38 (2026-10-17)
 
 - Full width, as in Notion: View > Full Width (⇧⌘F) or the arrows button in the toolbar widens a document to fill the window, so wide tables have room. Each document remembers its own setting, and the file is not changed.
 
