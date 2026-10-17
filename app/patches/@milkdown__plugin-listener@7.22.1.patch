@@ -1,0 +1,32 @@
+diff --git a/lib/index.js b/lib/index.js
+index 8573b1b504ad46781f15d55ebaf6cb481e584072..d0ba40d790689fab70a23b5f342b34f3685eded1 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -73,9 +73,17 @@ var listener = (ctx) => {
+ 		let prevMarkdown = null;
+ 		let prevSelection = null;
+ 		let latestTr = null;
++		// Patched for Sidenote: the document as loaded, serialized on the first
++		// change instead of at start-up. Serializing a long document took
++		// seconds and held up opening it.
++		let initDoc = null;
+ 		const debouncedHandler = debounce(() => {
+ 			if (!latestTr) return;
+ 			const { doc } = latestTr;
++			if (initDoc) {
++				prevMarkdown = serializer(initDoc);
++				initDoc = null;
++			}
+ 			if (listeners.updated.length > 0 && prevDoc && !prevDoc.eq(doc)) listeners.updated.forEach((fn) => {
+ 				fn(ctx, doc, prevDoc);
+ 			});
+@@ -110,7 +118,8 @@ var listener = (ctx) => {
+ 			state: {
+ 				init: (_, instance) => {
+ 					prevDoc = instance.doc;
+-					prevMarkdown = serializer(instance.doc);
++					prevMarkdown = null;
++					initDoc = instance.doc;
+ 				},
+ 				apply: (tr) => {
+ 					const currentSelection = tr.selection;

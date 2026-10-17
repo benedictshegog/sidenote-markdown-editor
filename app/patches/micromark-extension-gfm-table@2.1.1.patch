@@ -1,0 +1,212 @@
+diff --git a/dev/lib/edit-map.js b/dev/lib/edit-map.js
+index 983d0556e2713dc92982faa6a09b1093ef4d02db..e9110435597a6d8dbd1e98a7fce965f959040492 100644
+--- a/dev/lib/edit-map.js
++++ b/dev/lib/edit-map.js
+@@ -34,6 +34,8 @@ export class EditMap {
+      * @type {Array<Change>}
+      */
+     this.map = []
++    /** @type {Map<number, Change>} */
++    this.index = new Map()
+   }
+ 
+   /**
+@@ -95,35 +97,29 @@ export class EditMap {
+     //
+     // . shiftLinks(events, jumps)
+ 
+-    let index = this.map.length
+-    /** @type {Array<Array<Event>>} */
+-    const vecs = []
+-    while (index > 0) {
+-      index -= 1
+-      vecs.push(
+-        events.slice(this.map[index][0] + this.map[index][1]),
+-        this.map[index][2]
+-      )
+-
+-      // Truncate rest.
+-      events.length = this.map[index][0]
++    // Patched for Sidenote: build the result in one forward pass. Truncating
++    // `events` once per change and copying the rest took seconds in
++    // JavaScriptCore on a document with thousands of table rows.
++    /** @type {Array<Event>} */
++    const result = []
++    let from = 0
++
++    for (const [at, remove, add] of this.map) {
++      for (let index = from; index < at; index++) result.push(events[index])
++      for (const event of add) result.push(event)
++      from = at + remove
+     }
+ 
+-    vecs.push(events.slice())
+-    events.length = 0
+-
+-    let slice = vecs.pop()
+-
+-    while (slice) {
+-      for (const element of slice) {
+-        events.push(element)
+-      }
+-
+-      slice = vecs.pop()
++    for (let index = from; index < events.length; index++) {
++      result.push(events[index])
+     }
+ 
++    events.length = 0
++    for (const event of result) events.push(event)
++
+     // Truncate everything.
+     this.map.length = 0
++    this.index.clear()
+   }
+ }
+ 
+@@ -137,32 +133,25 @@ export class EditMap {
+  * @returns {undefined}
+  */
+ function addImplementation(editMap, at, remove, add) {
+-  let index = 0
+-
+   /* c8 ignore next 3 -- `resolve` is never called without tables, so without edits. */
+   if (remove === 0 && add.length === 0) {
+     return
+   }
+ 
+-  while (index < editMap.map.length) {
+-    if (editMap.map[index][0] === at) {
+-      editMap.map[index][1] += remove
+-
+-      // To do: before not used by tables, use when moving to micromark.
+-      // if (before) {
+-      //   add.push(...editMap.map[index][2])
+-      //   editMap.map[index][2] = add
+-      // } else {
+-      editMap.map[index][2].push(...add)
+-      // }
+-
+-      return
+-    }
++  // Patched for Sidenote: find the change at `at` through an index instead of
++  // scanning `map`. One edit map serves every table in the document, so the
++  // scan made parsing quadratic in the number of table cells.
++  const change = editMap.index.get(at)
+ 
+-    index += 1
++  if (change) {
++    change[1] += remove
++    for (const event of add) change[2].push(event)
++    return
+   }
+ 
+-  editMap.map.push([at, remove, add])
++  const created = [at, remove, add]
++  editMap.map.push(created)
++  editMap.index.set(at, created)
+ }
+ 
+ // /**
+diff --git a/lib/edit-map.js b/lib/edit-map.js
+index ecc8bce784d29a48e0869be1c4a2dd5ccf1d3d01..8fe7d514ea41cf9319331f1614066b63e144d62b 100644
+--- a/lib/edit-map.js
++++ b/lib/edit-map.js
+@@ -34,6 +34,8 @@ export class EditMap {
+      * @type {Array<Change>}
+      */
+     this.map = [];
++    /** @type {Map<number, Change>} */
++    this.index = new Map();
+   }
+ 
+   /**
+@@ -95,28 +97,29 @@ export class EditMap {
+     //
+     // . shiftLinks(events, jumps)
+ 
+-    let index = this.map.length;
+-    /** @type {Array<Array<Event>>} */
+-    const vecs = [];
+-    while (index > 0) {
+-      index -= 1;
+-      vecs.push(events.slice(this.map[index][0] + this.map[index][1]), this.map[index][2]);
++    // Patched for Sidenote: build the result in one forward pass. Truncating
++    // `events` once per change and copying the rest took seconds in
++    // JavaScriptCore on a document with thousands of table rows.
++    /** @type {Array<Event>} */
++    const result = [];
++    let from = 0;
++
++    for (const [at, remove, add] of this.map) {
++      for (let index = from; index < at; index++) result.push(events[index]);
++      for (const event of add) result.push(event);
++      from = at + remove;
++    }
+ 
+-      // Truncate rest.
+-      events.length = this.map[index][0];
++    for (let index = from; index < events.length; index++) {
++      result.push(events[index]);
+     }
+-    vecs.push(events.slice());
++
+     events.length = 0;
+-    let slice = vecs.pop();
+-    while (slice) {
+-      for (const element of slice) {
+-        events.push(element);
+-      }
+-      slice = vecs.pop();
+-    }
++    for (const event of result) events.push(event);
+ 
+     // Truncate everything.
+     this.map.length = 0;
++    this.index.clear();
+   }
+ }
+ 
+@@ -130,29 +133,25 @@ export class EditMap {
+  * @returns {undefined}
+  */
+ function addImplementation(editMap, at, remove, add) {
+-  let index = 0;
+-
+   /* c8 ignore next 3 -- `resolve` is never called without tables, so without edits. */
+   if (remove === 0 && add.length === 0) {
+     return;
+   }
+-  while (index < editMap.map.length) {
+-    if (editMap.map[index][0] === at) {
+-      editMap.map[index][1] += remove;
+-
+-      // To do: before not used by tables, use when moving to micromark.
+-      // if (before) {
+-      //   add.push(...editMap.map[index][2])
+-      //   editMap.map[index][2] = add
+-      // } else {
+-      editMap.map[index][2].push(...add);
+-      // }
+ 
+-      return;
+-    }
+-    index += 1;
++  // Patched for Sidenote: find the change at `at` through an index instead of
++  // scanning `map`. One edit map serves every table in the document, so the
++  // scan made parsing quadratic in the number of table cells.
++  const change = editMap.index.get(at);
++
++  if (change) {
++    change[1] += remove;
++    for (const event of add) change[2].push(event);
++    return;
+   }
+-  editMap.map.push([at, remove, add]);
++
++  const created = [at, remove, add];
++  editMap.map.push(created);
++  editMap.index.set(at, created);
+ }
+ 
+ // /**

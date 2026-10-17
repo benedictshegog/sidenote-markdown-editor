@@ -267,6 +267,14 @@ button {
 .docview.full-width .sidenote-editor .milkdown .ProseMirror {
   max-width: none;
 }
+/* Off-screen blocks skip layout and paint. Every caret placement, pointer
+   measurement and scroll forces a layout, and in a document of thousands of
+   table rows each one laid out the whole document. The placeholder height is
+   a first guess; `auto` keeps the real height once a block has been seen. */
+.sidenote-editor .milkdown .ProseMirror > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
 .workspace > .main {
   position: absolute;
   top: var(--title-h);

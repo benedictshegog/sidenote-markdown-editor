@@ -4,6 +4,17 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@milkdown/plugin-listener@7.22.1':
+    hash: 146cf89879f10e1b6afa629ef2006eb1df891c1c2405bb8c4ec57a01bec038d2
+    path: patches/@milkdown__plugin-listener@7.22.1.patch
+  '@milkdown/preset-commonmark@7.22.1':
+    hash: bb932dcfda12426adc5ad5e58143e276fa4b674bdcb0483e863ef28563df400b
+    path: patches/@milkdown__preset-commonmark@7.22.1.patch
+  micromark-extension-gfm-table@2.1.1:
+    hash: 51d90f453492004e99affbe120aba183265a6f4d3cf8cbc0005d61195b64e930
+    path: patches/micromark-extension-gfm-table@2.1.1.patch
+
 importers:
 
   .:
@@ -2415,7 +2426,7 @@ snapshots:
       '@milkdown/exception': 7.22.1
       '@milkdown/plugin-diff': 7.22.1
       '@milkdown/plugin-tooltip': 7.22.1
-      '@milkdown/preset-commonmark': 7.22.1
+      '@milkdown/preset-commonmark': 7.22.1(patch_hash=bb932dcfda12426adc5ad5e58143e276fa4b674bdcb0483e863ef28563df400b)
       '@milkdown/preset-gfm': 7.22.1
       '@milkdown/prose': 7.22.1
       '@milkdown/transformer': 7.22.1
@@ -2487,13 +2498,13 @@ snapshots:
       '@milkdown/plugin-diff': 7.22.1
       '@milkdown/plugin-history': 7.22.1
       '@milkdown/plugin-indent': 7.22.1
-      '@milkdown/plugin-listener': 7.22.1
+      '@milkdown/plugin-listener': 7.22.1(patch_hash=146cf89879f10e1b6afa629ef2006eb1df891c1c2405bb8c4ec57a01bec038d2)
       '@milkdown/plugin-slash': 7.22.1
       '@milkdown/plugin-streaming': 7.22.1
       '@milkdown/plugin-tooltip': 7.22.1
       '@milkdown/plugin-trailing': 7.22.1
       '@milkdown/plugin-upload': 7.22.1
-      '@milkdown/preset-commonmark': 7.22.1
+      '@milkdown/preset-commonmark': 7.22.1(patch_hash=bb932dcfda12426adc5ad5e58143e276fa4b674bdcb0483e863ef28563df400b)
       '@milkdown/preset-gfm': 7.22.1
       '@milkdown/prose': 7.22.1
       '@milkdown/transformer': 7.22.1
@@ -2562,7 +2573,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milkdown/plugin-listener@7.22.1':
+  '@milkdown/plugin-listener@7.22.1(patch_hash=146cf89879f10e1b6afa629ef2006eb1df891c1c2405bb8c4ec57a01bec038d2)':
     dependencies:
       '@milkdown/core': 7.22.1
       '@milkdown/ctx': 7.22.1
@@ -2622,7 +2633,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milkdown/preset-commonmark@7.22.1':
+  '@milkdown/preset-commonmark@7.22.1(patch_hash=bb932dcfda12426adc5ad5e58143e276fa4b674bdcb0483e863ef28563df400b)':
     dependencies:
       '@milkdown/core': 7.22.1
       '@milkdown/ctx': 7.22.1
@@ -2641,7 +2652,7 @@ snapshots:
       '@milkdown/core': 7.22.1
       '@milkdown/ctx': 7.22.1
       '@milkdown/exception': 7.22.1
-      '@milkdown/preset-commonmark': 7.22.1
+      '@milkdown/preset-commonmark': 7.22.1(patch_hash=bb932dcfda12426adc5ad5e58143e276fa4b674bdcb0483e863ef28563df400b)
       '@milkdown/prose': 7.22.1
       '@milkdown/transformer': 7.22.1
       '@milkdown/utils': 7.22.1
@@ -3743,7 +3754,7 @@ snapshots:
       micromark-util-symbol: 2.0.1
       micromark-util-types: 2.0.2
 
-  micromark-extension-gfm-table@2.1.1:
+  micromark-extension-gfm-table@2.1.1(patch_hash=51d90f453492004e99affbe120aba183265a6f4d3cf8cbc0005d61195b64e930):
     dependencies:
       devlop: 1.1.0
       micromark-factory-space: 2.0.1
@@ -3768,7 +3779,7 @@ snapshots:
       micromark-extension-gfm-autolink-literal: 2.1.0
       micromark-extension-gfm-footnote: 2.1.0
       micromark-extension-gfm-strikethrough: 2.1.0
-      micromark-extension-gfm-table: 2.1.1
+      micromark-extension-gfm-table: 2.1.1(patch_hash=51d90f453492004e99affbe120aba183265a6f4d3cf8cbc0005d61195b64e930)
       micromark-extension-gfm-tagfilter: 2.0.0
       micromark-extension-gfm-task-list-item: 2.1.0
       micromark-util-combine-extensions: 2.0.1

@@ -1,0 +1,29 @@
+diff --git a/lib/index.js b/lib/index.js
+index 8ead9b28468f83499125e48a8c2d833e3dabe7c5..30535038d5cf27af6a5793d402a62c77e3ef1234 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -2019,9 +2019,14 @@ var syncHeadingIdPlugin = $prose((ctx) => {
+ 		const tr = view.state.tr.setMeta("addToHistory", false);
+ 		let found = false;
+ 		const idMap = {};
++		// Patched for Sidenote: resolve the heading type once, and do not walk
++		// into text blocks or tables, which cannot hold a heading. Walking every
++		// table cell on every keystroke made typing slow in large documents.
++		const headingType = headingSchema.type(ctx);
+ 		view.state.doc.descendants((node, pos) => {
+-			if (node.type === headingSchema.type(ctx)) {
+-				if (node.textContent.trim().length === 0) return;
++			if (node.type !== headingType) return !(node.isTextblock || node.type.spec.tableRole === "table");
++			{
++				if (node.textContent.trim().length === 0) return false;
+ 				const attrs = node.attrs;
+ 				let id = getId(node);
+ 				if (idMap[id]) {
+@@ -2036,6 +2041,7 @@ var syncHeadingIdPlugin = $prose((ctx) => {
+ 					});
+ 				}
+ 			}
++			return false;
+ 		});
+ 		if (found) view.dispatch(tr);
+ 	};
