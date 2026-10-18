@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Long documents with big tables open several times faster, and typing and scrolling in them no longer lag.
+- A table taller than the window keeps its header row at the top while you scroll through it.
 
 ## 0.1.38 (2026-10-17)
 

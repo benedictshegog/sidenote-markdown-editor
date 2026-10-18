@@ -2255,6 +2255,42 @@ button {
   min-width: calc(64px - 1.4em);
   max-width: 18em;
 }
+/* Sticky header rows (editor/stickyHeaders.ts). A table taller than the pane
+   gets a copy of its header row in a strip just above its scroller. The strip
+   is sticky against the pane, so it pins below the tab bar with no script on
+   scroll, and it shows only while the real header is above the pane's top
+   edge. The strip is opaque (--bg under the header's own --surface tint),
+   sits under Crepe's handles and the find bar, and never takes a click: the
+   real cells underneath keep the pointer. */
+.sidenote-editor .milkdown .milkdown-table-block .sidenote-sticky-sentinel {
+  height: 1px;
+  margin-bottom: -1px;
+  pointer-events: none;
+}
+.sidenote-editor .milkdown .milkdown-table-block .sidenote-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  visibility: hidden;
+}
+.sidenote-editor .milkdown .milkdown-table-block .sidenote-sticky-head[data-stuck] {
+  visibility: visible;
+}
+.sidenote-editor .milkdown .ProseMirror .milkdown-table-block .sidenote-sticky-head > table {
+  table-layout: fixed;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.sidenote-editor .milkdown .milkdown-table-block .sidenote-sticky-head th {
+  box-sizing: border-box;
+}
 /* Column resizing (editor/tableResize.ts). Nothing is drawn on hover: near
    an internal column boundary the block gets `data-col-resize`, which turns
    the cursor and hides Crepe's own column and row handles (`.handle`, the

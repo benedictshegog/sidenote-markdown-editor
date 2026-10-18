@@ -34,6 +34,7 @@ import {
 import { findKey, findPlugin, setFindMeta } from "./find";
 import { ClipboardSerializer, clipboardPlugin } from "./clipboard";
 import { tableResizePlugin } from "./tableResize";
+import { stickyHeadersPlugin } from "./stickyHeaders";
 import { footnotePlugin } from "./footnotes";
 import { applyEditIn, findOnce } from "./applyEdit";
 import { TextMap } from "./textmap";
@@ -361,7 +362,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
         .use($prose(clipboardPlugin))
         // Column widths are a viewing affordance: they work under the lock
         // and never reach the markdown. See tableResize.ts for where they go.
-        .use($prose(() => tableResizePlugin(() => propsRef.current.docPath)));
+        .use($prose(() => tableResizePlugin(() => propsRef.current.docPath)))
+        // A tall table keeps its header row in view. See stickyHeaders.ts.
+        .use($prose(() => stickyHeadersPlugin));
 
       crepe.on((api) => {
         api.markdownUpdated((_ctx, md, prev) => {
