@@ -7,6 +7,7 @@ import {
   forwardRef,
 } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask, open } from "@tauri-apps/plugin-dialog";
 
 import { Contents } from "./Contents";
@@ -625,6 +626,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
     useEffect(() => {
       const un = listen<{
         rid: number;
+        window?: string;
         doc: string;
         old: string;
         new: string;
@@ -634,6 +636,12 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
       }>(
         "apply-request",
         async (e) => {
+          // One window answers. Delivery is not narrowed to the window the
+          // backend chose (see `handle_request` in ws.rs), and a second
+          // window showing the same document would apply or record the edit
+          // again.
+          if (e.payload.window && e.payload.window !== getCurrentWindow().label)
+            return;
           const {
             rid,
             doc: path,

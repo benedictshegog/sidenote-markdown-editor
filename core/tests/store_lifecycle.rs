@@ -817,3 +817,56 @@ fn suggestion_ids_do_not_repeat() {
     let c = store.record_suggestion(&d.id, "sid-a", "two item", "second item", None).unwrap();
     assert_eq!(c.id, "s3", "a freed id must not be handed out again");
 }
+
+/// Recording the same edit twice gives back the one already waiting. A
+/// document open in two windows used to record every `apply` twice, and the
+/// user saw each edit as two identical cards.
+#[test]
+fn recording_the_same_suggestion_twice_keeps_one() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    let a = store.record_suggestion(&d.id, "sid-a", "one item", "first item", None).unwrap();
+    let b = store.record_suggestion(&d.id, "sid-a", "one item", "first item", None).unwrap();
+    assert_eq!(a.id, b.id);
+    assert_eq!(store.read_suggestions(&d.id).unwrap().suggestions.len(), 1);
+
+    // A different replacement, or the same one for another thread, is a
+    // different suggestion.
+    store.record_suggestion(&d.id, "sid-a", "one item", "the first item", None).unwrap();
+    store.record_suggestion(&d.id, "sid-a", "one item", "first item", Some("t9")).unwrap();
+    assert_eq!(store.read_suggestions(&d.id).unwrap().suggestions.len(), 3);
+}
+
+/// Documents recorded before the fix hold exact duplicates; opening them
+/// collapses each pair to its first, and leaves a clean file alone.
+#[test]
+fn duplicate_pending_suggestions_collapse_to_the_first() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    store
+        .update_suggestions(&d.id, |sf| {
+            for (old, new) in [("a", "b"), ("a", "b"), ("c", "d"), ("c", "d"), ("e", "f")] {
+                let id = sf.take_id();
+                sf.suggestions.push(sidenote_core::Suggestion {
+                    id,
+                    old: old.into(),
+                    new: new.into(),
+                    thread: None,
+                    session: "sid-a".into(),
+                    at: "now".into(),
+                });
+            }
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(store.collapse_duplicate_suggestions(&d.id).unwrap(), 2);
+    let ids: Vec<String> = store
+        .read_suggestions(&d.id)
+        .unwrap()
+        .suggestions
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(ids, ["s1", "s3", "s5"]);
+    assert_eq!(store.collapse_duplicate_suggestions(&d.id).unwrap(), 0);
+}

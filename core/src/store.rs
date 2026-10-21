@@ -1094,6 +1094,12 @@ impl Store {
         thread_id: Option<&str>,
     ) -> Result<Suggestion> {
         self.update_suggestions(id, |sf| {
+            // The same edit proposed again is the one already waiting, not a
+            // second card. `old` occurs exactly once in the document, so the
+            // same `old` is the same range.
+            if let Some(same) = sf.suggestions.iter().find(|s| same_edit(s, old, new, thread_id)) {
+                return Ok(same.clone());
+            }
             let s = Suggestion {
                 id: sf.take_id(),
                 old: old.to_string(),
@@ -1105,6 +1111,30 @@ impl Store {
             sf.suggestions.push(s.clone());
             Ok(s)
         })
+    }
+
+    /// Drop pending suggestions that repeat an earlier one exactly (same
+    /// `old`, `new` and thread), keeping the first. Cleans up documents
+    /// recorded before `record_suggestion` was idempotent, when a document
+    /// open in two windows recorded every edit twice. Writes only when there
+    /// is something to drop. Returns how many went.
+    pub fn collapse_duplicate_suggestions(&self, id: &str) -> Result<usize> {
+        fn dedupe(list: &mut Vec<Suggestion>) -> usize {
+            let before = list.len();
+            let mut kept: Vec<Suggestion> = Vec::with_capacity(before);
+            for s in list.drain(..) {
+                if !kept.iter().any(|e| same_edit(e, &s.old, &s.new, s.thread.as_deref())) {
+                    kept.push(s);
+                }
+            }
+            *list = kept;
+            before - list.len()
+        }
+        let mut probe = self.read_suggestions(id)?.suggestions;
+        if dedupe(&mut probe) == 0 {
+            return Ok(0);
+        }
+        self.update_suggestions(id, |sf| Ok(dedupe(&mut sf.suggestions)))
     }
 
     /// The part of a suggested turn that is not the suggestion: leave the
@@ -1376,6 +1406,13 @@ fn focus_text(plain: &str) -> Option<String> {
     let line = plain.lines().map(str::trim).find(|l| !l.is_empty())?;
     let out: String = line.chars().take(MAX).collect();
     Some(out)
+}
+
+/// Two suggestions are the same edit when they replace the same passage with
+/// the same text for the same thread. The session and time are not part of
+/// it: a repeat is a repeat whoever sent it.
+fn same_edit(s: &Suggestion, old: &str, new: &str, thread: Option<&str>) -> bool {
+    s.old == old && s.new == new && s.thread.as_deref() == thread
 }
 
 pub fn absolute(path: &Path) -> PathBuf {

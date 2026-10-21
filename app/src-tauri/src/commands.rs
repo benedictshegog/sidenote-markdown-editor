@@ -403,7 +403,9 @@ pub struct SuggestionsView {
 }
 
 fn view_of(s: Suggestion) -> SuggestionView {
-    let segs = sidenote_core::suggest::segments(&s.old, &sidenote_core::plain_text(&s.new));
+    // The drawing, not the edit: a rewrite comes back as one struck block and
+    // one new one. Accepting inserts `s.new`, never these.
+    let segs = sidenote_core::suggest::display_segments(&s.old, &sidenote_core::plain_text(&s.new));
     let (removed, added) = sidenote_core::suggest::word_counts(&segs);
     SuggestionView {
         id: s.id,
@@ -421,6 +423,11 @@ fn view_of(s: Suggestion) -> SuggestionView {
 #[tauri::command]
 pub fn read_suggestions(state: S, id: String) -> Result<SuggestionsView, String> {
     let st = state.store.read_state(&id).map_err(err)?;
+    // Documents recorded while one edit could be stored twice still hold the
+    // pairs; collapse them on the way in so the user's margin cleans up.
+    if let Ok(n @ 1..) = state.store.collapse_duplicate_suggestions(&id) {
+        log::info!("suggestions: dropped {n} duplicate(s) on {id}");
+    }
     let pending = state.store.read_suggestions(&id).map_err(err)?.suggestions;
     Ok(SuggestionsView {
         suggesting: st.suggesting,

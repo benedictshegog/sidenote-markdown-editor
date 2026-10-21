@@ -1936,6 +1936,30 @@ button {
   cursor: default;
 }
 
+/* Where one suggestion starts and ends. Two suggestions on neighbouring
+   sentences used to meet band to band and read as one; the bar and the gap
+   keep them apart. */
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug-start {
+  display: inline-block;
+  width: 0;
+  height: 1.1em;
+  vertical-align: -0.2em;
+  border-left: 2px solid var(--sug-line);
+  margin: 0 2px 0 1px;
+  user-select: none;
+}
+
+.sidenote-editor .milkdown .ProseMirror .sidenote-sug-end {
+  margin-right: 4px;
+}
+
+/* The marker form of the end: an empty span, so it needs a box to hold the
+   margin. On an insertion it is that span's own margin. */
+span.sidenote-sug-end:empty {
+  display: inline-block;
+  width: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sidenote-editor .milkdown .ProseMirror .sidenote-sug {
     transition: none;

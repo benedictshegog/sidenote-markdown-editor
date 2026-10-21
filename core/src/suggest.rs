@@ -217,6 +217,82 @@ fn space_insertions(segs: &mut [Seg]) {
     }
 }
 
+/// Below this share of unchanged words a suggestion reads as a rewrite, not
+/// an edit.
+pub const REWRITE_MIN_KEPT: f64 = 0.4;
+/// This many separate changed stretches or more reads as confetti, unless
+/// nearly all of the passage is kept (see `REWRITE_KEEP_FINE`). Two swaps in
+/// one sentence still read in place.
+pub const REWRITE_MIN_HUNKS: usize = 3;
+/// At or above this share kept, any number of stretches stays fine-grained:
+/// a long paragraph with four typos fixed is still four typos.
+pub const REWRITE_KEEP_FINE: f64 = 0.85;
+
+/// Whether a word diff is too broken up to read in place.
+///
+/// "Kept" is the share of words left unchanged, measured against the longer
+/// side, so a sentence that doubled in length does not count as mostly kept.
+/// A "hunk" is one stretch of deletions and insertions between two unchanged
+/// runs. It is a rewrite when under 40% is kept, or when there are three hunks
+/// or more and under 85% is kept.
+///
+/// Drawn word by word, a rewrite alternates struck and new fragments so often
+/// that neither sentence can be read ("compares takes the gap … for in each
+/// half hour, half-hour (ignoring its sign) …"). A rewrite is drawn whole
+/// instead: the old passage struck through, then the new one.
+pub fn is_rewrite(segs: &[Seg]) -> bool {
+    let words = |k: SegKind| -> usize {
+        segs.iter()
+            .filter(|s| s.kind == k)
+            .map(|s| s.text.split_whitespace().count())
+            .sum()
+    };
+    let kept = words(SegKind::Equal);
+    let longer = (kept + words(SegKind::Delete)).max(kept + words(SegKind::Insert));
+    if longer == 0 || kept == 0 {
+        // Nothing in common: a pure insertion, a pure deletion or a full
+        // replacement, each of which already draws as one block.
+        return false;
+    }
+    let share = kept as f64 / longer as f64;
+    let mut hunks = 0;
+    let mut in_hunk = false;
+    for s in segs {
+        let changed = s.kind != SegKind::Equal;
+        if changed && !in_hunk {
+            hunks += 1;
+        }
+        in_hunk = changed;
+    }
+    share < REWRITE_MIN_KEPT || (hunks >= REWRITE_MIN_HUNKS && share < REWRITE_KEEP_FINE)
+}
+
+/// The segments to draw: the word diff for an edit, or, for a rewrite (see
+/// [`is_rewrite`]), the whole of `old` deleted followed by the whole of `new`.
+///
+/// The block form keeps the placement invariant of [`segments`] — its one
+/// `Delete` is `old` exactly — so the editor places it with the same walk.
+/// It changes the drawing only: accepting inserts the suggestion's markdown,
+/// never these segments.
+pub fn display_segments(old: &str, new: &str) -> Vec<Seg> {
+    let segs = segments(old, new);
+    if !is_rewrite(&segs) {
+        return segs;
+    }
+    let mut out = vec![Seg {
+        kind: SegKind::Delete,
+        text: old.to_string(),
+    }];
+    if !new.is_empty() {
+        out.push(Seg {
+            kind: SegKind::Insert,
+            text: new.to_string(),
+        });
+    }
+    space_insertions(&mut out);
+    out
+}
+
 /// How many words the suggestion removes and adds. What the card shows
 /// instead of the raw segment count.
 pub fn word_counts(segs: &[Seg]) -> (usize, usize) {
@@ -343,6 +419,52 @@ mod tests {
         let (removed, added) = word_counts(&segs);
         assert_eq!(removed, 2);
         assert_eq!(added, 3);
+    }
+
+    /// The case from the field: a sentence rewritten end to end came out as
+    /// alternating struck and new fragments. It must draw as two blocks.
+    #[test]
+    fn a_rewritten_sentence_draws_as_one_block() {
+        let old = "which compares the gap between the estimate and the real output for each half hour, averages the error across all half hours, and then normalising that by dividing the gap by the generator\u{2019}s maximum capacity.";
+        let new = "which takes the gap between the estimate and the real output in each half-hour (ignoring its sign), divides it by the most the farm can produce in a half-hour (its capacity \u{f7} 2), and averages across all half-hours, as a percentage.";
+        assert!(is_rewrite(&segments(old, new)));
+        let segs = display_segments(old, new);
+        assert_eq!(segs.len(), 2, "{segs:#?}");
+        assert_eq!(segs[0].kind, SegKind::Delete);
+        assert_eq!(segs[0].text, old, "the old side must still place exactly");
+        assert_eq!(segs[1].kind, SegKind::Insert);
+        assert_eq!(segs[1].text.trim(), new);
+        assert_eq!(rebuilt(&segs).0, old);
+    }
+
+    /// A word or two changed keeps the word diff: that is where it reads best.
+    #[test]
+    fn a_small_edit_keeps_the_word_diff() {
+        for (old, new) in [
+            ("We tested it on 67 farms across Great Britain.", "We tested it on 67 farms in Great Britain."),
+            ("The pipeline runs every hour and retries twice.", "The pipeline runs nightly at 02:00 and retries twice."),
+            ("runs every hour and retries twice on failure", "runs nightly at 02:00 UTC and retries three times on failure"),
+        ] {
+            let segs = display_segments(old, new);
+            assert_eq!(segs, segments(old, new), "{old:?}");
+            assert!(segs.iter().any(|s| s.kind == SegKind::Equal));
+        }
+    }
+
+    /// Many scattered fixes in a long passage are still fixes, not a rewrite.
+    #[test]
+    fn scattered_typos_in_a_long_passage_stay_fine() {
+        let old = "Teh model reads the forecast for every farm and writes one row per half hour. It recieves the wind speed at hub height and the temprature, and it ignores direction for now. The output goes to the table that the dashbaord reads each morning before the trading desk opens.";
+        let new = "The model reads the forecast for every farm and writes one row per half hour. It receives the wind speed at hub height and the temperature, and it ignores direction for now. The output goes to the table that the dashboard reads each morning before the trading desk opens.";
+        let segs = segments(old, new);
+        assert!(!is_rewrite(&segs), "{segs:#?}");
+    }
+
+    #[test]
+    fn pure_insertions_and_deletions_are_not_rewrites() {
+        assert!(!is_rewrite(&segments("", "brand new line")));
+        assert!(!is_rewrite(&segments("gone for good", "")));
+        assert!(!is_rewrite(&segments("one thing", "another")));
     }
 
     #[test]

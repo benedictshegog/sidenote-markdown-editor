@@ -37,15 +37,25 @@ export function setSuggestionsMeta(tr: Transaction, ranges: SuggestionRange[]): 
 
 /** The inserted words, as an element. Rendered by the editor rather than
  *  stored, so it carries no position of its own and cannot be edited. */
-function addition(text: string, id: string): HTMLElement {
+function addition(text: string, id: string, last: boolean): HTMLElement {
   const span = document.createElement('span')
-  span.className = 'sidenote-sug-add' 
+  span.className = last ? 'sidenote-sug-add sidenote-sug-end' : 'sidenote-sug-add'
   span.setAttribute('data-suggestion-id', id)
   // `textContent`, never innerHTML: this is document text from a file, and it
   // gets nowhere near the HTML parser.
   span.textContent = text
   return span
 }
+
+/** An empty marker at one edge of a suggestion; CSS draws it. */
+function edge(cls: string): HTMLElement {
+  const span = document.createElement('span')
+  span.className = cls
+  span.setAttribute('aria-hidden', 'true')
+  return span
+}
+
+const edgeSpec = (side: number) => ({ side, ignoreSelection: true, marks: [] })
 
 function build(state: EditorState, ranges: SuggestionRange[]): DecorationSet {
   const size = state.doc.content.size
@@ -57,11 +67,12 @@ function build(state: EditorState, ranges: SuggestionRange[]): DecorationSet {
     // not. That is the whole placement rule, and it is why the backend
     // guarantees those two rebuild `quote` exactly.
     let pos = r.from
-    for (const seg of r.segs) {
+    const lastIdx = r.segs.length - 1
+    r.segs.forEach((seg, i) => {
       if (seg.kind === 'insert') {
         if (pos >= 0 && pos <= size) {
           decos.push(
-            Decoration.widget(pos, () => addition(seg.text, r.id), {
+            Decoration.widget(pos, () => addition(seg.text, r.id, i === lastIdx), {
               // Sit after any deletion that ends here, so a replacement reads
               // "old new" rather than "new old".
               side: 1,
@@ -72,7 +83,7 @@ function build(state: EditorState, ranges: SuggestionRange[]): DecorationSet {
             }),
           )
         }
-        continue
+        return
       }
       const to = pos + seg.text.length
       if (seg.kind === 'delete' && to > pos && pos >= 0 && to <= size) {
@@ -84,7 +95,7 @@ function build(state: EditorState, ranges: SuggestionRange[]): DecorationSet {
         )
       }
       pos = to
-    }
+    })
 
     // A band over the whole passage, so a suggestion is one visible object
     // rather than a scatter of marks, and so clicking anywhere in it selects
@@ -98,6 +109,20 @@ function build(state: EditorState, ranges: SuggestionRange[]): DecorationSet {
           title: 'Suggested by Claude — accept or reject it in the margin',
         }),
       )
+      // Edges, so two suggestions on neighbouring sentences read as two: a
+      // bar where each starts and a gap where it ends. Without them the bands
+      // touched and a paragraph of suggestions ran together. The end goes on
+      // the last inserted words when the suggestion finishes with them,
+      // since those are drawn after the passage.
+      //
+      // Widgets, not inline marks on the first and last characters: a mark
+      // splits the deletion's span there, and its padding opened a gap inside
+      // the first word.
+      decos.push(Decoration.widget(r.from, () => edge('sidenote-sug-start'), edgeSpec(-1)))
+      if (r.segs[lastIdx]?.kind !== 'insert') {
+        // Side 2 puts it after any insertion widget at the same spot (side 1).
+        decos.push(Decoration.widget(end, () => edge('sidenote-sug-end'), edgeSpec(2)))
+      }
     }
   }
   return DecorationSet.create(state.doc, decos)

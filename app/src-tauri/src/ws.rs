@@ -227,6 +227,13 @@ async fn handle_request(app: &AppHandle, state: &Arc<AppState>, v: serde_json::V
 
     let payload = serde_json::json!({
         "rid": rid,
+        // The window meant to act. `emit_to` does not narrow delivery: a
+        // listener registered with the JS `listen` targets Any, and Any
+        // matches every emit, so every window got the request. With the
+        // document open in two windows both acted on it, and in suggesting
+        // mode each recorded its own copy: two identical cards per edit. Each
+        // window checks this label instead, as the menu events do.
+        "window": label,
         "doc": doc,
         "old": v.get("old").cloned().unwrap_or_default(),
         "new": v.get("new").cloned().unwrap_or_default(),
