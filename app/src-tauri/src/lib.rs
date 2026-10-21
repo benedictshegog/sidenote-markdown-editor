@@ -311,6 +311,7 @@ pub fn run() {
             commands::set_menu_checked,
             commands::accept_suggestion,
             commands::reject_suggestion,
+            commands::suggestion_reply,
             commands::anchor_threads,
             commands::anchor_one,
             commands::make_selectors,

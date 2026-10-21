@@ -74,7 +74,8 @@ enum Cmd {
     Reply {
         #[command(flatten)]
         file: FileArg,
-        /// Thread id, for example c12.
+        /// Thread id, for example c12. A pending suggestion's id (s3) names
+        /// the thread on its card.
         thread: String,
         /// Reply text.
         text: String,
@@ -106,10 +107,15 @@ enum Cmd {
         /// Replacement text. `-` reads it from stdin.
         #[arg(long)]
         new: String,
-        /// Thread this edit answers; it is re-anchored to the new text.
+        /// Thread this edit answers; it is re-anchored to the new text. In
+        /// suggesting mode the suggestion rides on that thread's card, and a
+        /// new version for the same passage on the same thread replaces the
+        /// one pending there. A suggestion id (s3) names its thread.
         #[arg(long)]
         thread: Option<String>,
-        /// Reply to leave on that thread.
+        /// Reply to leave on that thread. In suggesting mode with no
+        /// `--thread`, it starts the suggestion's own thread: the reason
+        /// shows on the suggestion's card, not on a card of its own.
         #[arg(long)]
         reply: Option<String>,
         /// Mark the thread actioned (a check mark in the app).
@@ -276,7 +282,9 @@ fn apply_in_app(
             .suggestions
             .into_iter()
             .find(|s| s.id == id);
-        let thread = store.finish_suggestion(&doc, &me, thread, reply)?;
+        // With `--reply` and no `--thread`, the reply starts the suggestion's
+        // own thread, so the reason sits on the suggestion's card.
+        let thread = store.finish_suggestion(&doc, &me, id, thread, reply)?;
         let _ = done;
         return Ok(Applied {
             doc,
@@ -441,6 +449,9 @@ fn run(cli: Cli) -> Result<i32, SidenoteError> {
             } else {
                 new
             };
+            // `--thread s3` names the suggestion's thread: the card the user
+            // replied on.
+            let thread = thread.map(|t| store.resolve_thread_arg(&file.file, &t)).transpose()?;
             let r = if std::env::var_os("SIDENOTE_APPLY_FILE").is_some() {
                 store.apply(
                     &file.file,
@@ -463,8 +474,13 @@ fn run(cli: Cli) -> Result<i32, SidenoteError> {
                     s.id, r.doc.path
                 );
                 println!("the user accepts or rejects it in the app; do not repeat the edit or reach for the Edit tool.");
-                if let Some(t) = &r.thread {
-                    println!("reply left on thread {}", t.id);
+                match &r.thread {
+                    Some(t) if t.for_suggestion => println!(
+                        "its thread is {}: the reason is on the suggestion's card, and the user's replies there come back as `reply` events for {}",
+                        t.id, t.id
+                    ),
+                    Some(t) => println!("reply left on thread {}; the suggestion rides on its card", t.id),
+                    None => println!("no reason given: next time pass it with --reply so it shows on the suggestion's card"),
                 }
                 return Ok(0);
             }
@@ -540,6 +556,7 @@ fn run(cli: Cli) -> Result<i32, SidenoteError> {
             text,
             done,
         } => {
+            let thread = store.resolve_thread_arg(&file.file, &thread)?;
             let t = store.reply(&file.file, &session(), &thread, &text, done)?;
             println!(
                 "replied to {} ({}{})",
@@ -671,6 +688,19 @@ fn print_turn_begin(r: &sidenote_core::TurnBegin) {
         println!();
         for t in &r.threads {
             print_thread(t);
+            for s in r.pending.iter().filter(|s| s.thread.as_deref() == Some(t.id.as_str())) {
+                println!(
+                    "pending suggestion {} on this thread: {:?} -> {:?}",
+                    s.id,
+                    s.old.chars().take(80).collect::<String>(),
+                    s.new.chars().take(80).collect::<String>(),
+                );
+                println!(
+                    "  to revise it: `sidenote apply \"<doc>\" --thread {} --old <same old> --new <new version> --reply <why>` (replaces {}); to answer only: `sidenote reply \"<doc>\" {} <text>`",
+                    t.id, s.id, t.id
+                );
+                println!();
+            }
         }
     }
     match (&r.snapshot, r.diff.is_empty()) {

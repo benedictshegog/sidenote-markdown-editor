@@ -213,6 +213,35 @@ echo "$OUT" | grep -q "suggesting mode" || fail "the refusal must say why: $OUT"
 grep -q "the first item" "$DOC" || fail "apply wrote the file once the mode was off"
 "$SIDENOTE" turn end "$DOC" >/dev/null
 
+# --- a suggestion's thread --------------------------------------------------
+# The app records suggestions; stand in for it with one that carries thread c9,
+# on which the user has replied. `turn begin` must say what is pending on the
+# thread, and `reply` must take the suggestion id for the thread on its card.
+python3 - "$SIDENOTE_HOME/docs/$ID" <<'EOF2'
+import json, sys, os
+d = sys.argv[1]
+t = json.load(open(os.path.join(d, "threads.json")))
+t["threads"].append({
+  "id": "c9", "status": "open", "for_suggestion": True,
+  "selector": {"exact": "two item"},
+  "created_at": "2026-10-21T10:00:00Z",
+  "messages": [
+    {"author": "claude", "at": "2026-10-21T10:00:00Z", "body": "Suggested a clearer label."},
+    {"author": "user", "at": "2026-10-21T10:01:00Z", "body": "Why?"},
+  ],
+})
+json.dump(t, open(os.path.join(d, "threads.json"), "w"), indent=2)
+json.dump({"version": 1, "next": 2, "suggestions": [
+  {"id": "s1", "old": "two item", "new": "second item", "thread": "c9", "session": "sid-a", "at": "2026-10-21T10:00:00Z"},
+]}, open(os.path.join(d, "suggestions.json"), "w"), indent=2)
+EOF2
+OUT="$("$SIDENOTE" turn begin "$DOC" --wait 0)"
+echo "$OUT" | grep -q -- "--- thread c9" || fail "turn begin must serve the reply on a suggestion's thread: $OUT"
+echo "$OUT" | grep -q "pending suggestion s1 on this thread" || fail "turn begin must name the suggestion on the thread: $OUT"
+"$SIDENOTE" reply "$DOC" s1 "It says which item." | grep -q "^replied to c9" || fail "reply by suggestion id lands on its thread"
+[ -z "$("$SIDENOTE" waiting "$DOC")" ] || fail "nothing waits once the suggestion's thread is answered"
+"$SIDENOTE" turn end "$DOC" >/dev/null
+
 # --- the file never carries review data -----------------------------------
 grep -q "comment\|sidenote" "$DOC" && fail "document polluted"
 

@@ -339,6 +339,8 @@ impl Store {
                 working: false,
                 working_since: None,
                 read_count: None,
+                for_suggestion: false,
+                decisions: Vec::new(),
             };
             t.threads.push(thread.clone());
             Ok(thread)
@@ -800,6 +802,8 @@ impl Store {
                 working: false,
                 working_since: None,
                 read_count: None,
+                for_suggestion: false,
+                decisions: Vec::new(),
             };
             t.threads.push(thread.clone());
             Ok(thread)
@@ -1093,12 +1097,33 @@ impl Store {
         new: &str,
         thread_id: Option<&str>,
     ) -> Result<Suggestion> {
-        self.update_suggestions(id, |sf| {
+        let (sug, revised, fresh) = self.update_suggestions(id, |sf| {
             // The same edit proposed again is the one already waiting, not a
             // second card. `old` occurs exactly once in the document, so the
-            // same `old` is the same range.
-            if let Some(same) = sf.suggestions.iter().find(|s| same_edit(s, old, new, thread_id)) {
-                return Ok(same.clone());
+            // same `old` is the same range. With no thread named it matches
+            // whatever thread the waiting one has gained since: `apply
+            // --reply` gives a suggestion its thread after recording it, and a
+            // retry of that apply must still find it.
+            if let Some(same) = sf
+                .suggestions
+                .iter()
+                .find(|s| s.old == old && s.new == new && (thread_id.is_none() || s.thread.as_deref() == thread_id))
+            {
+                return Ok((same.clone(), Vec::new(), false));
+            }
+            // A new version on the same thread replaces the one waiting there
+            // for the same passage: that is Claude revising its proposal after
+            // the user replied on the card. Only an overlapping passage counts,
+            // so one comment can still be answered with several separate edits.
+            let mut revised = Vec::new();
+            if let Some(t) = thread_id {
+                sf.suggestions.retain(|s| {
+                    let hit = s.thread.as_deref() == Some(t) && overlaps(&s.old, old);
+                    if hit {
+                        revised.push(s.clone());
+                    }
+                    !hit
+                });
             }
             let s = Suggestion {
                 id: sf.take_id(),
@@ -1109,8 +1134,122 @@ impl Store {
                 at: now(),
             };
             sf.suggestions.push(s.clone());
-            Ok(s)
-        })
+            Ok((s, revised, true))
+        })?;
+        if let (Some(t), true) = (thread_id, fresh) {
+            let at = now();
+            self.update_threads(id, |tf| {
+                // A thread named here that does not exist is not an error: the
+                // suggestion is still worth showing, just without its thread.
+                let Some(th) = tf.threads.iter_mut().find(|x| x.id == t) else {
+                    return Ok(());
+                };
+                for r in &revised {
+                    th.decisions.push(decision(r, Outcome::Revised, &at));
+                }
+                // Something is pending on it again, so it is open again. The
+                // usual way here is an undone accept: the record of that accept
+                // is no longer true and goes with it.
+                if th.status == ThreadStatus::Resolved {
+                    if let Some(i) = th
+                        .decisions
+                        .iter()
+                        .rposition(|d| d.outcome == Outcome::Accepted && d.old == old && d.new == new)
+                    {
+                        th.decisions.remove(i);
+                    }
+                    th.status = ThreadStatus::Open;
+                }
+                Ok(())
+            })?;
+        }
+        Ok(sug)
+    }
+
+    /// Put a message on a suggestion's thread, starting the thread when the
+    /// suggestion has none yet. This is what makes a suggestion and its
+    /// explanation one card: `apply --reply` with no `--thread` (Claude), or
+    /// the user replying on a suggestion card that had no thread (the app).
+    ///
+    /// A thread started here is anchored to the passage the suggestion would
+    /// replace — the words it is about — and marked `for_suggestion`, so the
+    /// app paints no comment highlight over a passage the suggestion already
+    /// marks. Not owner-guarded: the CLI checks ownership before calling it,
+    /// and the user's own reply needs no permission.
+    pub fn suggestion_thread(
+        &self,
+        id: &str,
+        suggestion_id: &str,
+        author: Author,
+        body: &str,
+    ) -> Result<Thread> {
+        let sug = self.require_suggestion(id, suggestion_id)?;
+        if let Some(tid) = sug.thread.as_deref() {
+            if self.read_threads(id)?.threads.iter().any(|t| t.id == tid) {
+                let th = self.add_message(id, tid, author, body, None)?;
+                if author == Author::Claude {
+                    return self.update_threads(id, |tf| {
+                        let th = tf
+                            .threads
+                            .iter_mut()
+                            .find(|x| x.id == tid)
+                            .ok_or_else(|| SidenoteError::ThreadNotFound(tid.to_string()))?;
+                        th.working = false;
+                        th.working_since = None;
+                        Ok(th.clone())
+                    });
+                }
+                return Ok(th);
+            }
+        }
+        let doc = self.doc_by_id(id)?;
+        // The file trails the editor by an autosave, so the passage may not be
+        // on disk yet; a bare quote still anchors once it is.
+        let selector = read_to_string(Path::new(&doc.path))
+            .ok()
+            .and_then(|md| {
+                let chars: Vec<char> = plain_text(&md).chars().collect();
+                let probe = Selector {
+                    exact: sug.old.clone(),
+                    ..Default::default()
+                };
+                crate::anchor::anchor_chars(&chars, &probe)
+                    .map(|a| make_selector_chars(&chars, a.range.start, a.range.end))
+            })
+            .unwrap_or_else(|| Selector {
+                exact: sug.old.clone(),
+                ..Default::default()
+            });
+        let ts = now();
+        let thread = self.update_threads(id, |t| {
+            let tid = next_thread_id(t.threads.iter().map(|x| x.id.as_str()));
+            let thread = Thread {
+                id: tid,
+                status: ThreadStatus::Open,
+                selector,
+                created_at: ts.clone(),
+                messages: vec![Message {
+                    author,
+                    at: ts.clone(),
+                    body: body.to_string(),
+                }],
+                done: false,
+                working: false,
+                working_since: None,
+                read_count: None,
+                for_suggestion: true,
+                decisions: Vec::new(),
+            };
+            t.threads.push(thread.clone());
+            Ok(thread)
+        })?;
+        self.update_suggestions(id, |sf| {
+            if let Some(s) = sf.suggestions.iter_mut().find(|s| s.id == suggestion_id) {
+                s.thread = Some(thread.id.clone());
+            }
+            Ok(())
+        })?;
+        Ok(thread)
     }
 
     /// Drop pending suggestions that repeat an earlier one exactly (same
@@ -1140,6 +1279,10 @@ impl Store {
     /// The part of a suggested turn that is not the suggestion: leave the
     /// reply, so the card can say why the change is being proposed.
     ///
+    /// With `--thread`, the reply goes on that thread, which the suggestion
+    /// already names. Without one, it starts the suggestion's own thread (see
+    /// [`Store::suggestion_thread`]) — never a second card beside it.
+    ///
     /// `done` is deliberately not taken. The check mark means the file was
     /// changed for that comment, and nothing has been changed yet; it is the
     /// user's accept that earns it.
@@ -1147,15 +1290,45 @@ impl Store {
         &self,
         doc: &DocEntry,
         session: &str,
+        suggestion_id: &str,
         thread_id: Option<&str>,
         reply: Option<&str>,
     ) -> Result<Option<Thread>> {
         let file = Path::new(&doc.path);
-        Ok(match (thread_id, reply) {
+        let find = |tid: &str| -> Result<Option<Thread>> {
+            Ok(self.threads(file, true)?.into_iter().find(|t| t.id == tid))
+        };
+        Ok(match (thread_id, reply.filter(|r| !r.trim().is_empty())) {
             (Some(id), Some(body)) => Some(self.reply(file, session, id, body, false)?),
-            (Some(id), None) => self.threads(file, true)?.into_iter().find(|t| t.id == id),
-            (None, _) => None,
+            (Some(id), None) => find(id)?,
+            (None, Some(body)) => {
+                self.require_owner(doc, session)?;
+                self.check_not_unlocked(&self.read_state(&doc.id)?, session)?;
+                Some(self.suggestion_thread(&doc.id, suggestion_id, Author::Claude, body)?)
+            }
+            (None, None) => match self.require_suggestion(&doc.id, suggestion_id)?.thread {
+                Some(tid) => find(&tid)?,
+                None => None,
+            },
         })
+    }
+
+    /// The thread a CLI argument names. A suggestion id (`s3`) stands for the
+    /// thread it carries, so `reply` and `apply --thread` can be pointed at
+    /// the card the user sees. Anything else is returned as given.
+    pub fn resolve_thread_arg(&self, path: &Path, arg: &str) -> Result<String> {
+        if !arg.starts_with('s') {
+            return Ok(arg.to_string());
+        }
+        let doc = self.require_doc(path)?;
+        match self.read_suggestions(&doc.id)?.suggestions.into_iter().find(|s| s.id == arg) {
+            Some(s) => s.thread.ok_or_else(|| {
+                SidenoteError::Other(format!(
+                    "suggestion {arg} has no thread yet; give the reason with `apply --reply` instead"
+                ))
+            }),
+            None => Ok(arg.to_string()),
+        }
     }
 
     fn require_suggestion(&self, id: &str, suggestion_id: &str) -> Result<Suggestion> {
@@ -1206,6 +1379,9 @@ impl Store {
                 },
                 None => orphaned = true,
             }
+            if let Some(t) = self.settle(id, &sug, Outcome::Accepted)? {
+                thread = Some(t);
+            }
         }
         Ok(Accepted {
             doc,
@@ -1215,12 +1391,51 @@ impl Store {
         })
     }
 
-    /// Reject a suggestion: drop it, change nothing. The thread keeps
-    /// Claude's reply, so what was proposed and turned down is still readable.
+    /// Reject a suggestion: drop it, change nothing. Its thread keeps every
+    /// message and records the rejection, so what was proposed and turned
+    /// down is still readable.
     pub fn reject_suggestion(&self, id: &str, suggestion_id: &str) -> Result<Suggestion> {
+        self.retire_suggestion(id, suggestion_id, Outcome::Rejected)
+    }
+
+    /// Take a suggestion out of the margin without editing anything, and
+    /// record why on its thread: rejected by the user, dropped because they
+    /// rewrote the passage, or accepted again by a redo (the editor has put the
+    /// text back itself).
+    pub fn retire_suggestion(&self, id: &str, suggestion_id: &str, outcome: Outcome) -> Result<Suggestion> {
         let sug = self.require_suggestion(id, suggestion_id)?;
         self.remove_suggestion(id, suggestion_id)?;
+        self.settle(id, &sug, outcome)?;
         Ok(sug)
+    }
+
+    /// Record a decided suggestion on its thread, and resolve the thread once
+    /// nothing else is pending on it — the same state the user's Resolve
+    /// gives, so it leaves the margin, keeps its history, and can be
+    /// re-opened. Deciding is the user's act, so this is not session-scoped.
+    /// Call after the suggestion has left `suggestions.json`.
+    fn settle(&self, id: &str, sug: &Suggestion, outcome: Outcome) -> Result<Option<Thread>> {
+        let Some(tid) = sug.thread.as_deref() else {
+            return Ok(None);
+        };
+        let still_pending = self
+            .read_suggestions(id)?
+            .suggestions
+            .iter()
+            .any(|s| s.thread.as_deref() == Some(tid));
+        let at = now();
+        self.update_threads(id, |tf| {
+            let Some(th) = tf.threads.iter_mut().find(|t| t.id == tid) else {
+                return Ok(None);
+            };
+            th.decisions.push(decision(sug, outcome, &at));
+            if !still_pending {
+                th.status = ThreadStatus::Resolved;
+                th.working = false;
+                th.working_since = None;
+            }
+            Ok(Some(th.clone()))
+        })
     }
 
     fn remove_suggestion(&self, id: &str, suggestion_id: &str) -> Result<()> {
@@ -1406,6 +1621,22 @@ fn focus_text(plain: &str) -> Option<String> {
     let line = plain.lines().map(str::trim).find(|l| !l.is_empty())?;
     let out: String = line.chars().take(MAX).collect();
     Some(out)
+}
+
+/// Two passages overlap when one holds the other. Both are plain text that
+/// occurs once in the document, so containment is the overlap that matters.
+fn overlaps(a: &str, b: &str) -> bool {
+    a.contains(b) || b.contains(a)
+}
+
+fn decision(s: &Suggestion, outcome: Outcome, at: &str) -> SuggestionDecision {
+    SuggestionDecision {
+        suggestion: s.id.clone(),
+        outcome,
+        old: s.old.clone(),
+        new: s.new.clone(),
+        at: at.to_string(),
+    }
 }
 
 /// Two suggestions are the same edit when they replace the same passage with

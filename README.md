@@ -143,6 +143,11 @@ one lands in the editor the same way, so your cursor, scroll position and undo
 history survive — Cmd+Z takes an accepted edit back, and the suggestion returns
 to the margin with it. Rewrite a suggested passage yourself and the suggestion
 is dropped: you have answered it, and Claude's reply stays in the thread.
+Each suggestion is one card: the change, Accept and Reject, and a thread.
+Claude's reason (`apply --reply`) is its first message, and a reply from you
+reaches Claude like any other comment, so it can answer or revise the
+suggestion on the same card. Deciding resolves the thread and records what was
+decided, so the conversation is kept.
 `sidenote suggest "<doc>"` prints the mode and what is pending;
 `docs/decisions/2026-08-26-suggesting-mode.md` says why it works this way.
 

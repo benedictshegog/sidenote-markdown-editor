@@ -159,6 +159,36 @@ WebKit's own DOM undo, which knows nothing about the editor's history. Undo is
 now a normal menu id the UI routes: to the focused input when there is one, so a
 half-typed comment still undoes itself, and to the document's history otherwise.
 
+## A suggestion's thread (2026-10-21)
+
+The first version kept the explanation apart from the edit. `apply --reply`
+with no `--thread` dropped the reply, so sessions wrote a `note` instead, and
+the user saw two cards for one change. Now a suggestion carries its thread:
+
+- **The link is `Suggestion::thread`, as before.** No new file and no new id
+  space. A thread is a thread: `turn begin`, `reply`, `ack`, the replay on
+  connect and the 👀 all work on it unchanged, and old data loads as it is.
+- **`apply --reply` with no `--thread` starts the thread** (Claude's message
+  first, anchored to the passage the edit replaces) after the app has recorded
+  the suggestion, so a refused edit leaves nothing behind. The thread is marked
+  `for_suggestion`: while the suggestion is pending the app paints no comment
+  highlight for it — the suggestion already marks the words — and places its
+  card where the suggestion is drawn. The user replying on a suggestion with no
+  thread starts one the same way, with their message.
+- **A new version on the same thread for an overlapping passage replaces the
+  pending one.** That is how Claude revises after a reply. A separate passage
+  on the same thread is a second suggestion on the same card, so one comment
+  can still be answered with several edits.
+- **Deciding resolves the thread** once nothing else is pending on it, the same
+  state the user's Resolve gives, and appends a `decisions` record (accepted,
+  rejected, dropped because the user rewrote the passage, or revised) with the
+  old and new text. History lives on the thread because `suggestions.json`
+  forgets a suggestion once it is decided. An undone accept re-opens the
+  thread and takes its record back. No `resolve` event is sent: a decision
+  needs no answer, and accept-all would wake the session once per card.
+- `s3` works wherever a thread id does on the CLI (`reply`, `apply
+  --thread`), naming the thread on that suggestion's card.
+
 ## Revisit if
 
 Pending suggestions start outliving the session that made them often enough to

@@ -2,7 +2,7 @@
 name: sidenote-review
 description: Put a markdown document up for review in the Sidenote Mac app and handle the comments that come back. Use when the user asks to "open this in Sidenote", "send this for review", "let me comment on this", "connect to <file> in Sidenote" (the prompt the app copies for a new session), when a Sidenote comment event arrives on the monitor (a JSON frame with "event": "comment" | "reply" | "resolve"), or when the user asks to re-arm or check the Sidenote listener. Claude Code only; the `sidenote` CLI does every deterministic step.
 ---
-<!-- sidenote-skill-version: 11 -->
+<!-- sidenote-skill-version: 12 -->
 
 # Sidenote review
 
@@ -69,7 +69,7 @@ A frame with `"replay": true` is a comment that arrived while this session was n
    - **In suggesting mode `apply` proposes rather than writes.** See below.
    - For a change too large to express as one replacement (restructuring the whole document), fall back to the old path: `sidenote lock "<doc>"` once, the Edit tool, then `sidenote reply` and `sidenote anchor "<doc>" <thread> "<a short exact phrase from the new text>"`. Without the re-anchor, `turn end` orphans the thread.
    - `sidenote reply "<doc>" <thread> "<one or two sentences>"` on its own answers a comment that needs no change. Never add `--done` to a reply-only answer.
-   - When you change a passage nobody commented on (a fix you noticed, a knock-on change), `sidenote apply` it without `--thread`, then leave a note: `sidenote note "<doc>" "<short exact phrase>" "<one sentence>"`. A note also works for a question to the user. Notes start with your message, so they do not come back to you.
+   - When you change a passage nobody commented on (a fix you noticed, a knock-on change), `sidenote apply` it without `--thread`, then leave a note: `sidenote note "<doc>" "<short exact phrase>" "<one sentence>"`. A note also works for a question to the user. Notes start with your message, so they do not come back to you. In suggesting mode, do not leave a note for an edit: put the reason in `--reply` on the `apply` (see "Suggesting mode").
    - Never resolve a thread. Resolving is the user's decision, made in the app after reading the reply; the CLI has no option for it. When no change is needed, say why in the reply and leave it at that.
    - Exit 5: stop everything and tell the user.
 4. `sidenote turn end "<doc>"`. It re-anchors every thread to the new text (a rewritten sentence orphans its thread; say so in the reply beforehand when you rewrite anchored text), writes a snapshot when the text changed, clears the lock.
@@ -114,6 +114,30 @@ What it changes for you:
 - **Use `apply` exactly as before.** One call per change, `--old` and `--new`,
   same exactly-once rule. It exits 0 and says `suggested s1 … (not applied)`.
   That is success, not a failure to retry.
+- **Put the reason in `--reply` on the `apply`, never in a separate `note`.**
+  Each suggestion is one card in the margin: the change, Accept and Reject,
+  and a thread. `--reply` is the first message of that thread. A `note` makes
+  a second, disconnected card, which is what this replaces.
+
+  ```sh
+  sidenote apply "<doc>" --old "<exact text>" --new "<replacement>" \
+    --reply "<one sentence: why this change>"
+  ```
+
+  With no `--thread`, the reply starts the suggestion's own thread and the
+  output names it (`its thread is c7`). With `--thread c12` (answering a
+  comment), the suggestion rides on that comment's card and the reply goes in
+  its thread, as before.
+- **The user can reply on the suggestion.** That arrives as an ordinary
+  `reply` event for the suggestion's thread id (`c7`), and `turn begin` lists
+  it with the suggestion still pending on it. Answer with `sidenote reply
+  "<doc>" c7 "…"`. To revise the proposal, `apply` again with `--thread c7`,
+  the same `--old` and the new `--new`, plus `--reply`: the new version
+  replaces the pending one on the same card. A suggestion id works wherever a
+  thread id does (`sidenote reply "<doc>" s3 "…"`).
+- **Accepting or rejecting resolves the thread.** The thread and its
+  messages are kept, with the outcome recorded; no event is sent. A thread
+  that comes back to you later starts from there.
 - **Never work around it.** Do not reach for the Edit tool, do not `lock` and
   write the file yourself, do not repeat the edit because the file "did not
   change". Suggesting mode is the user asking to approve changes first;

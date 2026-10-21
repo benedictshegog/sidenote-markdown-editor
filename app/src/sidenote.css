@@ -1968,18 +1968,28 @@ span.sidenote-sug-end:empty {
 
 /* ---- suggestions: the card ---------------------------------------------- */
 
-/* The decision block, on a comment card or on a card of its own. */
+/* The decision block, at the top of its card: the thread under it says why.
+   Aligned with the messages, and ruled off from them like one message from
+   the next. */
 .sug-decide {
-  border-top: 1px solid var(--hairline);
-  padding: 10px 14px 12px;
+  padding: 2px 0 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.ccard.is-suggestion .sug-decide {
-  border-top: none;
-  padding-top: 2px;
+.sug-decide:last-child {
+  padding-bottom: 2px;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.sug-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg-3);
 }
 
 .sug-decide-head {
@@ -2046,6 +2056,50 @@ span.sidenote-sug-end:empty {
 .sug-reject:hover {
   background: var(--surface);
   color: var(--fg);
+}
+
+/* What became of a thread's suggestions, on its resolved card. Quiet, like the
+   quote a resolved comment shows: it is history, not a decision to make. */
+.sug-history {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sug-history-row {
+  padding-left: 8px;
+  border-left: 2px solid var(--hairline-strong);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--fg-3);
+}
+
+.sug-history-label {
+  display: block;
+  font: 500 11px/1.3 var(--font-ui);
+  color: var(--fg-2);
+}
+
+.sug-history-label.is-accepted {
+  color: var(--sug);
+}
+
+.sug-history-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.sug-history-text del {
+  text-decoration-color: var(--sug-del-line);
+}
+
+.sug-history-text ins {
+  text-decoration: none;
+  color: var(--fg-2);
 }
 
 /* ---- editor: Crepe tokens ---------------------------------------------- */

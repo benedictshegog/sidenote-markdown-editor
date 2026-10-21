@@ -480,10 +480,42 @@ pub fn accept_suggestion(
     Ok(r.thread)
 }
 
+/// Take a suggestion out of the margin without editing. `outcome` says why,
+/// for the record kept on its thread: `rejected` (the default, the user's
+/// Reject), `dropped` (they rewrote the passage) or `accepted` (a redo put the
+/// accepted text back).
 #[tauri::command]
-pub fn reject_suggestion(state: S, id: String, suggestion: String) -> Result<(), String> {
-    state.store.reject_suggestion(&id, &suggestion).map_err(err)?;
+pub fn reject_suggestion(
+    state: S,
+    id: String,
+    suggestion: String,
+    outcome: Option<String>,
+) -> Result<(), String> {
+    let outcome = match outcome.as_deref() {
+        Some("dropped") => sidenote_core::Outcome::Dropped,
+        Some("accepted") => sidenote_core::Outcome::Accepted,
+        _ => sidenote_core::Outcome::Rejected,
+    };
+    state
+        .store
+        .retire_suggestion(&id, &suggestion, outcome)
+        .map_err(err)?;
     Ok(())
+}
+
+/// The user replied on a suggestion that has no thread yet: start one with
+/// their message, so the reply reaches Claude like any other comment.
+#[tauri::command]
+pub fn suggestion_reply(
+    state: S,
+    id: String,
+    suggestion: String,
+    body: String,
+) -> Result<Thread, String> {
+    state
+        .store
+        .suggestion_thread(&id, &suggestion, sidenote_core::Author::User, &body)
+        .map_err(err)
 }
 
 /// Locate selectors in plain text. Offsets are char offsets.

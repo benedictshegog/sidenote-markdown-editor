@@ -6,7 +6,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { DRAFT_ID } from '../editor/commentMark'
-import { isUnread, type Suggestion, type Thread } from '../types'
+import { isUnread, type Suggestion, type SuggestionDecision, type Thread } from '../types'
+import { OUTCOME_LABEL, anchorIdFor, groupSuggestions, ridesOnSuggestion } from './suggestionCards'
 
 export interface Draft {
   quote: string
@@ -37,12 +38,14 @@ interface Props {
   onRelocate: (id: string) => void
   canRelocate: boolean
   onToggleResolved: () => void
-  /** Pending suggestions. One attached to a thread rides on that thread's
+  /** Pending suggestions. Those attached to a thread ride on that thread's
    *  card; the rest get cards of their own. */
   suggestions: Suggestion[]
   selectedSuggestion: string | null
   onSelectSuggestion: (id: string | null) => void
   onDecide: (id: string, accept: boolean) => void
+  /** The user replied on a suggestion that has no thread yet. */
+  onReplySuggestion: (id: string, body: string) => void
 }
 
 const GAP = 10
@@ -182,13 +185,16 @@ function ResolveIcon() {
 function Decide({
   suggestion,
   onDecide,
+  showTime,
 }: {
   suggestion: Suggestion
   onDecide: (accept: boolean) => void
+  /** On a card with no thread there is no message to carry the time. */
+  showTime?: boolean
 }) {
   const { removed, added } = suggestion
   return (
-    <div className="sug-decide" onClick={(e) => e.stopPropagation()}>
+    <div className="sug-decide">
       <div className="sug-decide-head">
         <span className="sug-badge">Suggested edit</span>
         {(removed > 0 || added > 0) && (
@@ -198,12 +204,27 @@ function Decide({
             {added > 0 && <span className="sug-in">+{added}</span>} words
           </span>
         )}
+        {showTime && <span className="sug-time">{relativeTime(suggestion.at)}</span>}
       </div>
       <div className="sug-actions">
-        <button type="button" className="btn-accent sug-accept" onClick={() => onDecide(true)}>
+        <button
+          type="button"
+          className="btn-accent sug-accept"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDecide(true)
+          }}
+        >
           Accept
         </button>
-        <button type="button" className="btn-quiet sug-reject" onClick={() => onDecide(false)}>
+        <button
+          type="button"
+          className="btn-quiet sug-reject"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDecide(false)
+          }}
+        >
           Reject
         </button>
       </div>
@@ -211,8 +232,9 @@ function Decide({
   )
 }
 
-/** A suggestion nobody commented on: Claude changed something on its own
- *  initiative. It gets a card because there is no thread to hang it from. */
+/** A suggestion with no thread: Claude proposed it without a reason. It gets
+ *  a card because there is no thread to hang it from, and a reply box, whose
+ *  first message starts the suggestion's thread. */
 function SuggestionCard({
   suggestion,
   top,
@@ -221,6 +243,7 @@ function SuggestionCard({
   register,
   onSelect,
   onDecide,
+  onReply,
 }: {
   suggestion: Suggestion
   top: number
@@ -229,6 +252,7 @@ function SuggestionCard({
   register: (id: string, el: HTMLElement | null) => void
   onSelect: () => void
   onDecide: (accept: boolean) => void
+  onReply: (body: string) => void
 }) {
   const refCb = useCallback((el: HTMLElement | null) => register(suggestion.id, el), [register, suggestion.id])
   const cls = ['ccard', 'is-suggestion', active ? 'is-active' : '', measured ? 'is-measured' : ''].join(' ')
@@ -242,16 +266,31 @@ function SuggestionCard({
         onSelect()
       }}
     >
-      <div className="cmsg">
-        <div className="cmsg-head">
-          <Avatar author="claude" />
-          <div className="cmsg-who">
-            <span className="cmsg-name">Claude</span>
-            <span className="cmsg-time">{relativeTime(suggestion.at)}</span>
-          </div>
+      <Decide suggestion={suggestion} onDecide={onDecide} showTime />
+      {active && (
+        <div className="ccard-reply">
+          <Avatar author="user" small />
+          <Composer placeholder="Reply" onSubmit={onReply} submitLabel="Reply" />
         </div>
-        <Decide suggestion={suggestion} onDecide={onDecide} />
-      </div>
+      )}
+    </div>
+  )
+}
+
+/** What became of the suggestions a thread carried, on its resolved card. */
+function History({ decisions }: { decisions: SuggestionDecision[] }) {
+  return (
+    <div className="sug-history">
+      {decisions.map((d, i) => (
+        <div key={i} className="sug-history-row">
+          <span className={`sug-history-label is-${d.outcome}`}>{OUTCOME_LABEL[d.outcome]}</span>
+          <span className="sug-history-text">
+            {d.old && <del>{d.old}</del>}
+            {d.old && d.new && ' '}
+            {d.new && <ins>{d.new}</ins>}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -325,7 +364,7 @@ function Card({
   onSetStatus,
   onRelocate,
   canRelocate,
-  suggestion,
+  suggestions,
   onDecide,
 }: {
   thread: Thread
@@ -340,11 +379,14 @@ function Card({
   onSetStatus: (status: 'open' | 'resolved') => void
   onRelocate: () => void
   canRelocate: boolean
-  /** The edit Claude is proposing in answer to this comment, if any. */
-  suggestion: Suggestion | null
-  onDecide: (accept: boolean) => void
+  /** The edits Claude is proposing on this thread, if any. */
+  suggestions: Suggestion[]
+  onDecide: (id: string, accept: boolean) => void
 }) {
   const resolved = thread.status === 'resolved'
+  const decisions = thread.decisions ?? []
+  // A decided card says how, where a resolved one says "Resolved".
+  const outcome = resolved && decisions.length > 0 ? decisions[decisions.length - 1].outcome : null
   const [first, ...rest] = thread.messages
   // Stable, or React re-runs it (null, then the element) on every render.
   const refCb = useCallback((el: HTMLElement | null) => register(thread.id, el), [register, thread.id])
@@ -367,6 +409,10 @@ function Card({
         onSelect()
       }}
     >
+      {/* The decision first: it is what the card asks of the reader, and the
+          thread under it is the why. */}
+      {!resolved &&
+        suggestions.map((sg) => <Decide key={sg.id} suggestion={sg} onDecide={(a) => onDecide(sg.id, a)} />)}
       {first && (
         <div className="cmsg">
           <div className="cmsg-head">
@@ -375,14 +421,14 @@ function Card({
               <span className="cmsg-name">{first.author === 'claude' ? 'Claude' : 'You'}</span>
               <span className="cmsg-time">
                 {relativeTime(first.at)}
-                {resolved ? ' · Resolved' : ''}
+                {outcome ? ` · ${OUTCOME_LABEL[outcome].split(':')[0]}` : resolved ? ' · Resolved' : ''}
               </span>
             </div>
             <div className="cmsg-tools">
               {isUnread(thread) && !active && (
                 <span className="ccard-unread" title="Claude has replied since you last opened this" />
               )}
-              {!resolved && canResolve && (
+              {!resolved && canResolve && suggestions.length === 0 && (
                 <button
                   type="button"
                   className="ccard-resolve"
@@ -398,7 +444,10 @@ function Card({
               )}
             </div>
           </div>
-          {(orphaned || resolved) && <div className="ccard-quote">{thread.selector.exact}</div>}
+          {(orphaned || resolved) && decisions.length === 0 && (
+            <div className="ccard-quote">{thread.selector.exact}</div>
+          )}
+          {resolved && decisions.length > 0 && <History decisions={decisions} />}
           {orphaned && !resolved && (
             <div className="ccard-orphan">
               The quoted text was not found.{' '}
@@ -453,7 +502,6 @@ function Card({
           </div>
         </div>
       )}
-      {suggestion && !resolved && <Decide suggestion={suggestion} onDecide={onDecide} />}
       {active && !resolved && (
         <div className="ccard-reply">
           <Avatar author="user" small />
@@ -493,17 +541,9 @@ export function CommentMargin(props: Props) {
     [threads, showResolved],
   )
 
-  // A suggestion answering a comment belongs on that comment's card; the rest
-  // stand alone. Split once, so both the layout and the render agree.
-  const byThread = useMemo(() => {
-    const m = new Map<string, Suggestion>()
-    for (const sg of suggestions) if (sg.thread) m.set(sg.thread, sg)
-    return m
-  }, [suggestions])
-  const loose = useMemo(
-    () => suggestions.filter((sg) => !sg.thread || !threads.some((t) => t.id === sg.thread)),
-    [suggestions, threads],
-  )
+  // A suggestion with a thread belongs on that thread's card; the rest stand
+  // alone. Split once, so both the layout and the render agree.
+  const { byThread, loose } = useMemo(() => groupSuggestions(suggestions, threads), [suggestions, threads])
 
   // Where each highlight starts, relative to the canvas. The canvas scrolls as
   // one piece with the margin, so the offset holds at any scroll position.
@@ -623,6 +663,11 @@ export function CommentMargin(props: Props) {
       .filter((t) => t.status !== 'resolved')
       .sort(byPosition)
       .map((t) => {
+        // A thread riding on a pending suggestion has no highlight of its
+        // own; its card sits where the suggestion is drawn.
+        if (ridesOnSuggestion(t, suggestions)) {
+          return { id: t.id, anchor: anchors.get(anchorIdFor(t, byThread)) ?? null }
+        }
         const orphan = t.status === 'orphaned' || unanchored.has(t.id)
         return { id: t.id, anchor: orphan ? null : (anchors.get(t.id) ?? null) }
       })
@@ -650,9 +695,11 @@ export function CommentMargin(props: Props) {
     for (const t of [...visible].filter((t) => t.status === 'resolved').sort(byPosition)) {
       items.push({ id: t.id, anchor: null })
     }
-    const active = draft ? DRAFT_ID : (selectedSuggestion ?? selected)
+    // A selected suggestion that rides on a thread card is that card.
+    const looseSel = selectedSuggestion && loose.some((sg) => sg.id === selectedSuggestion) ? selectedSuggestion : null
+    const active = draft ? DRAFT_ID : (looseSel ?? selected)
     return layout(items, heights, active)
-  }, [visible, anchors, heights, draft, selected, unanchored, loose, selectedSuggestion])
+  }, [visible, anchors, heights, draft, selected, unanchored, loose, selectedSuggestion, suggestions, byThread])
 
   let columnHeight = 0
   for (const [id, t] of tops) columnHeight = Math.max(columnHeight, t + (heights.get(id) ?? FALLBACK_HEIGHT))
@@ -696,21 +743,23 @@ export function CommentMargin(props: Props) {
             key={t.id}
             thread={t}
             top={tops.get(t.id) ?? 0}
-            orphaned={t.status === 'orphaned' || unanchored.has(t.id)}
+            orphaned={
+              !ridesOnSuggestion(t, suggestions) && (t.status === 'orphaned' || unanchored.has(t.id))
+            }
             active={selected === t.id && !draft}
             canResolve={props.canResolve}
             measured={heights.has(t.id)}
             register={register}
-            onSelect={() => props.onSelect(t.id)}
+            onSelect={() => {
+              props.onSelect(t.id)
+              props.onSelectSuggestion(byThread.get(t.id)?.[0]?.id ?? null)
+            }}
             onReply={(body) => props.onReply(t.id, body)}
             onSetStatus={(s) => props.onSetStatus(t.id, s)}
             onRelocate={() => props.onRelocate(t.id)}
             canRelocate={props.canRelocate}
-            suggestion={byThread.get(t.id) ?? null}
-            onDecide={(accept) => {
-              const sg = byThread.get(t.id)
-              if (sg) props.onDecide(sg.id, accept)
-            }}
+            suggestions={byThread.get(t.id) ?? []}
+            onDecide={props.onDecide}
           />
         ))}
         {loose.map((sg) => (
@@ -721,8 +770,12 @@ export function CommentMargin(props: Props) {
             active={selectedSuggestion === sg.id && !draft}
             measured={heights.has(sg.id)}
             register={register}
-            onSelect={() => props.onSelectSuggestion(sg.id)}
+            onSelect={() => {
+              props.onSelect(null)
+              props.onSelectSuggestion(sg.id)
+            }}
             onDecide={(accept) => props.onDecide(sg.id, accept)}
+            onReply={(body) => props.onReplySuggestion(sg.id, body)}
           />
         ))}
       </div>

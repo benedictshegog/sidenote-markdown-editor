@@ -30,6 +30,24 @@ export interface Thread {
   /** How many messages the thread held when the user last opened it. A count
    *  rather than a time: these timestamps are whole seconds. */
   read_count?: number | null
+  /** Started to carry a suggested edit rather than by a comment. While the
+   *  suggestion is pending it shares the suggestion's card and paints no
+   *  comment highlight: the suggestion marks the passage itself. */
+  for_suggestion?: boolean
+  /** What became of the suggestions this thread carried, oldest first. */
+  decisions?: SuggestionDecision[]
+}
+
+export type Outcome = 'accepted' | 'rejected' | 'dropped' | 'revised'
+
+export interface SuggestionDecision {
+  suggestion: string
+  outcome: Outcome
+  /** Plain text it would have replaced. */
+  old: string
+  /** The replacement, markdown. */
+  new: string
+  at: string
 }
 
 /** A thread is unread when Claude has written in it since the user last

@@ -686,7 +686,7 @@ fn a_suggestion_leaves_the_file_alone_until_it_is_accepted() {
         )
         .unwrap();
     let thread = store
-        .finish_suggestion(&d, "sid-a", Some(&t1.id), Some("Suggested naming the hold."))
+        .finish_suggestion(&d, "sid-a", &sug.id, Some(&t1.id), Some("Suggested naming the hold."))
         .unwrap()
         .expect("the thread comes back");
 
@@ -869,4 +869,158 @@ fn duplicate_pending_suggestions_collapse_to_the_first() {
         .collect();
     assert_eq!(ids, ["s1", "s3", "s5"]);
     assert_eq!(store.collapse_duplicate_suggestions(&d.id).unwrap(), 0);
+}
+
+// ---- a suggestion's own thread -------------------------------------------
+
+/// `apply --reply` with no `--thread` used to drop the reason on the floor,
+/// so sessions wrote a separate note and the user got two cards. Now the
+/// reason starts the suggestion's own thread.
+#[test]
+fn a_reply_without_a_thread_starts_the_suggestions_own_thread() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    store.set_suggesting(&d.id, true).unwrap();
+    let sug = store
+        .record_suggestion(&d.id, "sid-a", "Run the job once more", "Run it again", None)
+        .unwrap();
+    let th = store
+        .finish_suggestion(&d, "sid-a", &sug.id, None, Some("Shorter, same meaning."))
+        .unwrap()
+        .expect("a thread is started");
+
+    assert!(th.for_suggestion);
+    assert_eq!(th.messages.len(), 1);
+    assert_eq!(th.messages[0].author, sidenote_core::Author::Claude);
+    assert_eq!(th.messages[0].body, "Shorter, same meaning.");
+    assert_eq!(th.selector.exact, "Run the job once more");
+    assert!(!th.awaits_claude(), "Claude's own reason does not come back to it");
+    let pending = store.read_suggestions(&d.id).unwrap().suggestions;
+    assert_eq!(pending[0].thread.as_deref(), Some(th.id.as_str()), "the suggestion names its thread");
+    assert_eq!(store.read_threads(&d.id).unwrap().threads.len(), 1, "one thread, one card");
+
+    // The user replies on the card: an ordinary thread awaiting Claude, which
+    // `turn begin` serves and `reply` (by thread or suggestion id) answers.
+    store.add_message(&d.id, &th.id, sidenote_core::Author::User, "Keep 'once more'?", None).unwrap();
+    let tb = store.turn_begin(&doc, "sid-a", Duration::ZERO).unwrap();
+    assert_eq!(tb.threads.len(), 1);
+    assert_eq!(tb.threads[0].id, th.id);
+    assert_eq!(store.resolve_thread_arg(&doc, &sug.id).unwrap(), th.id);
+    let r = store.reply(&doc, "sid-a", &th.id, "Fair; revised.", false).unwrap();
+    assert!(!r.working);
+
+    // A retry of the same apply finds the same suggestion, thread and all.
+    let again = store
+        .record_suggestion(&d.id, "sid-a", "Run the job once more", "Run it again", None)
+        .unwrap();
+    assert_eq!(again.id, sug.id);
+    assert_eq!(store.read_suggestions(&d.id).unwrap().suggestions.len(), 1);
+}
+
+/// Claude revises its proposal after the user replies: the new version on the
+/// same thread and passage replaces the pending one, and the thread stays open
+/// with the old version on record.
+#[test]
+fn a_new_version_on_the_same_thread_replaces_the_pending_one() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    let s1 = store
+        .record_suggestion(&d.id, "sid-a", "Run the job once more", "Run it again", None)
+        .unwrap();
+    let th = store.suggestion_thread(&d.id, &s1.id, sidenote_core::Author::Claude, "why").unwrap();
+    let s2 = store
+        .record_suggestion(&d.id, "sid-a", "Run the job once more", "Run the job a final time", Some(&th.id))
+        .unwrap();
+    assert_ne!(s1.id, s2.id);
+    let pending = store.read_suggestions(&d.id).unwrap().suggestions;
+    assert_eq!(pending.len(), 1, "{pending:?}");
+    assert_eq!(pending[0].id, s2.id);
+    let t = store.read_threads(&d.id).unwrap().threads.remove(0);
+    assert_eq!(t.status, ThreadStatus::Open);
+    assert_eq!(t.decisions.len(), 1);
+    assert_eq!(t.decisions[0].outcome, sidenote_core::Outcome::Revised);
+    assert_eq!(t.decisions[0].new, "Run it again");
+
+    // A separate passage on the same thread is a second edit, not a revision.
+    store.record_suggestion(&d.id, "sid-a", "one item", "first item", Some(&th.id)).unwrap();
+    assert_eq!(store.read_suggestions(&d.id).unwrap().suggestions.len(), 2);
+}
+
+/// Deciding keeps the thread: resolved, as the user's Resolve leaves it, with
+/// the decision recorded. A thread with another suggestion still pending
+/// stays open until that one is decided too.
+#[test]
+fn deciding_resolves_the_thread_and_keeps_its_history() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    let sel = selector_for(DOC, "deletes its own hold row");
+    let c1 = store.create_thread(&d.id, sel, "tidy this section").unwrap();
+    let a = store
+        .record_suggestion(&d.id, "sid-a", "Run the job once more", "Run it again", Some(&c1.id))
+        .unwrap();
+    let b = store.record_suggestion(&d.id, "sid-a", "one item", "first item", Some(&c1.id)).unwrap();
+
+    store.reject_suggestion(&d.id, &a.id).unwrap();
+    let t = store.read_threads(&d.id).unwrap().threads.remove(0);
+    assert_eq!(t.status, ThreadStatus::Open, "b is still pending on it");
+    assert_eq!(t.decisions[0].outcome, sidenote_core::Outcome::Rejected);
+
+    let text = fs::read_to_string(&doc).unwrap();
+    fs::write(&doc, text.replace("- one item", "- first item")).unwrap();
+    let acc = store.accept_suggestion_applied(&d.id, &b.id, "first item").unwrap();
+    let t = acc.thread.expect("thread returned");
+    assert_eq!(t.status, ThreadStatus::Resolved);
+    assert_eq!(t.messages.len(), 1, "no message is lost");
+    let outcomes: Vec<_> = t.decisions.iter().map(|x| x.outcome).collect();
+    assert_eq!(outcomes, [sidenote_core::Outcome::Rejected, sidenote_core::Outcome::Accepted]);
+
+    // Undo of the accept records the suggestion again: the thread re-opens
+    // and the accept is no longer on record.
+    store.record_suggestion(&d.id, "sid-a", "one item", "first item", Some(&c1.id)).unwrap();
+    let t = store.read_threads(&d.id).unwrap().threads.remove(0);
+    assert_eq!(t.status, ThreadStatus::Open);
+    let outcomes: Vec<_> = t.decisions.iter().map(|x| x.outcome).collect();
+    assert_eq!(outcomes, [sidenote_core::Outcome::Rejected]);
+}
+
+/// Review data written before this change has no `for_suggestion` or
+/// `decisions` and still loads, and a thread with neither writes neither.
+#[test]
+fn older_review_data_still_loads() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    fs::write(
+        store.threads_path(&d.id),
+        r#"{"version":1,"threads":[{"id":"c1","status":"open","selector":{"exact":"run the job"},"created_at":"2026-10-01T00:00:00Z","messages":[{"author":"user","at":"2026-10-01T00:00:00Z","body":"hm"}]}]}"#,
+    )
+    .unwrap();
+    fs::write(
+        store.suggestions_path(&d.id),
+        r#"{"version":1,"suggestions":[{"id":"s1","old":"one item","new":"first item","thread":"c1","session":"sid-a","at":"2026-10-01T00:00:00Z"}]}"#,
+    )
+    .unwrap();
+    let t = store.read_threads(&d.id).unwrap().threads.remove(0);
+    assert!(!t.for_suggestion);
+    assert!(t.decisions.is_empty());
+    assert_eq!(store.read_suggestions(&d.id).unwrap().suggestions[0].thread.as_deref(), Some("c1"));
+    store.add_message(&d.id, "c1", sidenote_core::Author::Claude, "ok", None).unwrap();
+    let raw = fs::read_to_string(store.threads_path(&d.id)).unwrap();
+    assert!(!raw.contains("for_suggestion") && !raw.contains("decisions"), "{raw}");
+}
+
+/// The user replying on a suggestion that has no thread starts one with their
+/// message, which then awaits Claude like any comment.
+#[test]
+fn a_user_reply_on_a_bare_suggestion_starts_a_thread_for_claude() {
+    let (_t, store, doc) = setup();
+    let (d, _) = store.register(&doc, Some("sid-a")).unwrap();
+    let s = store.record_suggestion(&d.id, "sid-a", "one item", "first item", None).unwrap();
+    let th = store.suggestion_thread(&d.id, &s.id, sidenote_core::Author::User, "why?").unwrap();
+    assert!(th.for_suggestion && th.awaits_claude());
+    assert_eq!(store.pending_for_session("sid-a").unwrap()[0].1, vec![th.id.clone()]);
+    // Rewriting the passage drops the suggestion and resolves the thread.
+    store.retire_suggestion(&d.id, &s.id, sidenote_core::Outcome::Dropped).unwrap();
+    let t = store.read_threads(&d.id).unwrap().threads.remove(0);
+    assert_eq!(t.status, ThreadStatus::Resolved);
+    assert_eq!(t.decisions[0].outcome, sidenote_core::Outcome::Dropped);
 }

@@ -47,8 +47,14 @@ export const ipc = {
     invoke<Suggestion>('record_suggestion', { id, session, old, new: next, thread }),
   acceptSuggestion: (id: string, suggestion: string, landed: string) =>
     invoke<Thread | null>('accept_suggestion', { id, suggestion, landed }),
-  rejectSuggestion: (id: string, suggestion: string) =>
-    invoke<void>('reject_suggestion', { id, suggestion }),
+  /** Take a suggestion out of the margin without editing. `outcome` is the
+   *  record left on its thread: the user's Reject by default, `dropped` when
+   *  they rewrote the passage, `accepted` when a redo put the text back. */
+  rejectSuggestion: (id: string, suggestion: string, outcome?: 'dropped' | 'accepted') =>
+    invoke<void>('reject_suggestion', { id, suggestion, outcome: outcome ?? null }),
+  /** The user's reply on a suggestion with no thread: starts its thread. */
+  suggestionReply: (id: string, suggestion: string, body: string) =>
+    invoke<Thread>('suggestion_reply', { id, suggestion, body }),
   anchorThreads: (text: string, selectors: Selector[]) =>
     invoke<(Anchored | null)[]>('anchor_threads', { text, selectors }),
   makeSelectors: (text: string, ranges: [number, number][]) =>

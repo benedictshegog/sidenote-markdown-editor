@@ -14,6 +14,7 @@ import { Contents } from "./Contents";
 import { Editor, type EditorHandle, type PresenceItem } from "./editor/Editor";
 import { ipc } from "./ipc";
 import { CommentMargin, type Draft } from "./panel/CommentMargin";
+import { paintable } from "./panel/suggestionCards";
 import { VersionsPanel } from "./panel/VersionsPanel";
 import {
   isUnread,
@@ -264,8 +265,14 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
       setStateView(await ipc.readState(docRef.current.id));
     }, []);
 
+    // A thread riding on a pending suggestion is not painted: the suggestion
+    // marks the passage, and its card sits there (see suggestionCards.ts).
+    const suggestionsRef = useRef<Suggestion[]>([]);
     const applyThreads = useCallback(async (ts: Thread[]) => {
-      const miss = (await editor.current?.applyThreads(ts)) ?? [];
+      const miss =
+        (await editor.current?.applyThreads(
+          paintable(ts, suggestionsRef.current),
+        )) ?? [];
       marksPainted.current = true;
       setUnanchored(new Set(miss));
       setRevision((r) => r + 1);
@@ -279,13 +286,23 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
     const refreshSuggestions = useCallback(async () => {
       const sv = await ipc.readSuggestions(docRef.current.id);
+      // Which threads ride on a suggestion may have changed, and with it which
+      // highlights belong in the text.
+      const painted = (sg: Suggestion[]) =>
+        paintable(threadsRef.current, sg)
+          .map((t) => t.id)
+          .join(" ");
+      const before = painted(suggestionsRef.current);
+      suggestionsRef.current = sv.suggestions;
       setSuggestions(sv.suggestions);
+      if (marksPainted.current && painted(sv.suggestions) !== before)
+        await applyThreads(threadsRef.current);
       // A card whose suggestion has been decided must not stay selected, or
       // the margin lays everything out around one that is not there.
       setSelectedSug((cur) =>
         cur && sv.suggestions.some((x) => x.id === cur) ? cur : null,
       );
-    }, []);
+    }, [applyThreads]);
 
     // ---- saving -------------------------------------------------------------
 
@@ -389,6 +406,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
         ]);
         setThreads(tf.threads);
         setStateView(st);
+        suggestionsRef.current = sv.suggestions;
         setSuggestions(sv.suggestions);
         setSelectedSug(null);
         await refreshListeners();
@@ -751,13 +769,14 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
           let dropped = 0;
           for (const g of gone) {
             const ok = await ipc
-              .rejectSuggestion(cur.doc.id, g.id)
+              .rejectSuggestion(cur.doc.id, g.id, "dropped")
               .then(() => true)
               .catch(() => false);
             if (ok) dropped++;
           }
           if (dropped === 0) return;
           await refreshSuggestions();
+          await refreshThreads();
           onToast(
             dropped === 1
               ? "Suggestion dropped: you rewrote that passage."
@@ -766,7 +785,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
         })();
       }, IDLE_MS);
       return () => window.clearTimeout(t);
-    }, [loaded, suggestions, revision, refreshSuggestions, onToast]);
+    }, [loaded, suggestions, revision, refreshSuggestions, refreshThreads, onToast]);
 
     // Undo and redo of an accept, watched in the text rather than in the
     // history plugin.
@@ -813,16 +832,21 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
               }
             } else if (e.live && !backAgain && landedThere) {
               // Redone: the edit is in the text again, so the card goes.
-              await ipc.rejectSuggestion(cur.doc.id, e.id).catch(() => {});
+              await ipc
+                .rejectSuggestion(cur.doc.id, e.id, "accepted")
+                .catch(() => {});
               e.live = false;
               changed = true;
             }
           }
-          if (changed) await refreshSuggestions();
+          if (changed) {
+            await refreshSuggestions();
+            await refreshThreads();
+          }
         })();
       }, 400);
       return () => window.clearTimeout(t);
-    }, [loaded, revision, refreshSuggestions]);
+    }, [loaded, revision, refreshSuggestions, refreshThreads]);
 
     // Drawing them costs no IPC — the backend already sent the text to find
     // and the segments to draw — so it can redraw on every change.
@@ -918,9 +942,12 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             onToast(`Reject failed: ${e}`);
           });
         }
+        // Deciding resolves the suggestion's thread, so the card leaves with
+        // its history kept.
         await refreshSuggestions();
+        await refreshThreads();
       },
-      [acceptOne, onToast, refreshSuggestions, suggestions],
+      [acceptOne, onToast, refreshSuggestions, refreshThreads, suggestions],
     );
 
     const decideAll = useCallback(
@@ -942,6 +969,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
           }
         }
         await refreshSuggestions();
+        await refreshThreads();
         const verb = accept ? "Accepted" : "Rejected";
         onToast(
           failed
@@ -949,7 +977,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
             : `${verb} ${done} suggestion${done === 1 ? "" : "s"}.`,
         );
       },
-      [acceptOne, onToast, refreshSuggestions, suggestions],
+      [acceptOne, onToast, refreshSuggestions, refreshThreads, suggestions],
     );
 
     // ---- comments -----------------------------------------------------------
@@ -1023,6 +1051,27 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
           ts.map((x) => (x.id === id ? { ...x, working: true } : x)),
         );
     }, []);
+
+    // A reply on a suggestion with no thread starts its thread. The message is
+    // the user's, so it reaches the session as a new comment.
+    const replySuggestion = useCallback(
+      async (sid: string, body: string) => {
+        const cur = loadedRef.current;
+        if (!cur) return;
+        const t = await ipc.suggestionReply(cur.doc.id, sid, body);
+        setThreads((ts) => [...ts.filter((x) => x.id !== t.id), t]);
+        await refreshSuggestions();
+        setSelected(t.id);
+        const r = await ipc.emitEvent(cur.doc.id, "comment", t.id);
+        if (r.marked)
+          setThreads((ts) =>
+            ts.map((x) => (x.id === t.id ? { ...x, working: true } : x)),
+          );
+        if (r.delivered === 0)
+          onToast("Saved. It reaches Claude Code when a session connects.");
+      },
+      [refreshSuggestions, onToast],
+    );
 
     // Expanding a card is the first moment its replies are on screen, so it is
     // the honest place to call the thread read. Fire and forget: the badge and
@@ -1762,6 +1811,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
                   selectedSuggestion={selectedSug}
                   onSelectSuggestion={setSelectedSug}
                   onDecide={(id, accept) => void decide(id, accept)}
+                  onReplySuggestion={(id, b) => void replySuggestion(id, b)}
                 />
               )}
             </div>

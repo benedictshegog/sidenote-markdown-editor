@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+- Each suggested edit is now one card in the margin: the change, Accept and Reject, and Claude's reason, with a box to reply. Claude no longer leaves its reason on a second card beside it.
+- Reply on a suggestion to ask Claude about it. Claude can answer there, or replace the suggestion with a new version on the same card.
+- Accepting or rejecting a suggestion keeps its conversation. The card moves to the resolved comments and says what you decided.
+- A comment that Claude answers with more than one suggested edit now offers Accept and Reject for each of them.
+
 ## 0.1.42 (2026-10-21)
 
 - A suggested edit no longer shows up twice when the document is open in two windows. Documents that already have doubled suggestions tidy themselves up when you open them.

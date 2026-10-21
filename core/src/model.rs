@@ -123,6 +123,46 @@ pub struct Thread {
     /// be missed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub read_count: Option<usize>,
+    /// The thread was started to carry a suggested edit, not by a comment:
+    /// `apply --reply` in suggesting mode with no `--thread`, or the user
+    /// replying on a suggestion that had no thread. While the suggestion is
+    /// pending the app draws the suggestion and the thread as one card and
+    /// paints no comment highlight, because the suggestion marks the passage
+    /// itself. Which suggestion is in `suggestions.json` (`Suggestion::thread`),
+    /// the one place the link lives.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub for_suggestion: bool,
+    /// What became of the suggestions this thread carried, oldest first.
+    /// Written when one is decided, so the proposal is still readable once it
+    /// has left `suggestions.json`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub decisions: Vec<SuggestionDecision>,
+}
+
+/// How a suggestion left the margin.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Outcome {
+    /// The user accepted it; the text is in the document.
+    Accepted,
+    /// The user rejected it.
+    Rejected,
+    /// The user rewrote the passage, so it no longer fit.
+    Dropped,
+    /// Claude proposed a new version on the same thread, which replaced it.
+    Revised,
+}
+
+/// One decided suggestion, kept on its thread as history.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SuggestionDecision {
+    pub suggestion: String,
+    pub outcome: Outcome,
+    /// The passage it would have replaced (plain text) and the replacement
+    /// (markdown), as they were proposed.
+    pub old: String,
+    pub new: String,
+    pub at: String,
 }
 
 impl Thread {
