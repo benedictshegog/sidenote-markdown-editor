@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.40 (2026-10-21)
 
 - Typing over the grey word completion that macOS offers no longer wipes the line you are writing. The editor no longer shows those completions.
 
