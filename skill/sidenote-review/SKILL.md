@@ -2,7 +2,7 @@
 name: sidenote-review
 description: Put a markdown document up for review in the Sidenote Mac app and handle the comments that come back. Use when the user asks to "open this in Sidenote", "send this for review", "let me comment on this", "connect to <file> in Sidenote" (the prompt the app copies for a new session), when a Sidenote comment event arrives on the monitor (a JSON frame with "event": "comment" | "reply" | "resolve"), or when the user asks to re-arm or check the Sidenote listener. Claude Code only; the `sidenote` CLI does every deterministic step.
 ---
-<!-- sidenote-skill-version: 12 -->
+<!-- sidenote-skill-version: 13 -->
 
 # Sidenote review
 
