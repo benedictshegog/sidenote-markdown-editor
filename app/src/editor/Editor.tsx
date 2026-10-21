@@ -321,6 +321,11 @@ export const Editor = forwardRef<EditorHandle, Props>(
           // "download linked file".)
           ctx.update(editorViewOptionsCtx, (prev) => ({
             ...prev,
+            // macOS inline predictions (the grey completion after the caret)
+            // are off. Typing over one makes WebKit rewrite the paragraph in a
+            // way ProseMirror misreads: the next letter lands at the start of
+            // the line and then the whole line is lost.
+            attributes: { writingsuggestions: "false" },
             handleKeyDown: (view, event) => {
               if (backspaceUnstylesHeading(view, event)) return true;
               return prev.handleKeyDown?.(view, event) ?? false;

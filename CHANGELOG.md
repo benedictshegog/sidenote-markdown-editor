@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Typing over the grey word completion that macOS offers no longer wipes the line you are writing. The editor no longer shows those completions.
+
 ## 0.1.39 (2026-10-18)
 
 - Long documents with big tables open several times faster, and typing and scrolling in them no longer lag.
