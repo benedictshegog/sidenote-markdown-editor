@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.41 (2026-10-21)
 
 - Typing no longer comes out backwards, and lines no longer vanish while you write. This came in with 0.1.39.
 
