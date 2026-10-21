@@ -230,8 +230,8 @@ class StickyView {
       }
     }
     for (const rec of all ? this.recs.values() : tables) {
-      // A block the browser has skipped (content-visibility) reports no
-      // size; it is measured again when it comes into view.
+      // A table not measured yet has no size; it is measured again when
+      // its size is reported.
       const tall = (this.sizes.get(rec.table)?.h ?? 0) > this.paneH;
       if (tall !== rec.tall) {
         rec.tall = tall;
