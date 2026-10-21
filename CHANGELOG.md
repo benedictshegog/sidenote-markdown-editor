@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.42 (2026-10-21)
 
 - A suggested edit no longer shows up twice when the document is open in two windows. Documents that already have doubled suggestions tidy themselves up when you open them.
 - A rewritten sentence now shows as the old version struck through followed by the new one, instead of the two mixed word by word. Small edits still show the changed words in place.
