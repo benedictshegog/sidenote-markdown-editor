@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.43 (2026-10-21)
 
 - Each suggested edit is now one card in the margin: the change, Accept and Reject, and Claude's reason, with a box to reply. Claude no longer leaves its reason on a second card beside it.
 - Reply on a suggestion to ask Claude about it. Claude can answer there, or replace the suggestion with a new version on the same card.
