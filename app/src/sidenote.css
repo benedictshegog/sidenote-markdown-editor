@@ -279,6 +279,142 @@ button {
   bottom: 0;
 }
 
+/* ---- split panes ------------------------------------------------------- */
+
+/* Two tabs side by side, as Rex lays out panes: each column has a slim head
+   with its title, the divider between them moves, and the tab bar holds the
+   pair as one entry. `--split` is where the divider sits. */
+.workspace {
+  --pane-h: 30px;
+}
+.pane-slot {
+  display: contents;
+}
+.docview.in-pane {
+  top: calc(var(--title-h) + var(--pane-h));
+}
+.docview.pane-left {
+  right: calc(100% - var(--split));
+}
+.docview.pane-right {
+  left: var(--split);
+}
+/* The pill hangs in the pane's head rather than in the tab bar. */
+.docview.in-pane .pill {
+  top: calc((var(--pane-h) + var(--pill-h)) / -2);
+}
+.pane-head {
+  position: absolute;
+  top: var(--title-h);
+  height: var(--pane-h);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* Clear of the pill, which sits at the head's right-hand end. */
+  padding: 0 200px 0 14px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--fg-3);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pane-head.pane-left {
+  left: 0;
+  right: calc(100% - var(--split));
+}
+.pane-head.pane-right {
+  left: var(--split);
+  right: 0;
+}
+.pane-head-active {
+  color: var(--fg);
+}
+.pane-head-title {
+  min-width: 0;
+  margin-right: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pane-head-btn {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  color: var(--fg-3);
+  fill: currentColor;
+  opacity: 0;
+}
+.pane-head-btn svg {
+  display: block;
+  margin: auto;
+}
+.pane-head:hover .pane-head-btn {
+  opacity: 1;
+}
+.pane-head-btn:hover {
+  background: var(--surface-2);
+  color: var(--fg);
+}
+/* A wide hit area on a hairline. */
+.pane-divider {
+  position: absolute;
+  top: var(--title-h);
+  bottom: 0;
+  left: var(--split);
+  width: 9px;
+  margin-left: -4px;
+  z-index: 5;
+  cursor: col-resize;
+}
+.pane-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: var(--hairline);
+  transition: background 120ms var(--ease);
+}
+.pane-divider:hover::before,
+.pane-divider:active::before {
+  background: var(--accent-underline);
+}
+/* Where a dragged tab or pane head would land. */
+.pane-drop {
+  position: absolute;
+  top: var(--title-h);
+  bottom: 0;
+  left: 0;
+  right: 50%;
+  z-index: 20;
+  margin: 6px;
+  border: 2px solid var(--accent-underline);
+  border-radius: 8px;
+  background: var(--accent-tint);
+  pointer-events: none;
+  transition: left 120ms var(--ease), right 120ms var(--ease);
+}
+.pane-drop-right {
+  left: 50%;
+  right: 0;
+}
+.pane-drop-split.pane-drop-left {
+  right: calc(100% - var(--split));
+}
+.pane-drop-split.pane-drop-right {
+  left: var(--split);
+}
+.tabbar-drop {
+  background: var(--accent-tint);
+}
+
 /* ---- sidebar ----------------------------------------------------------- */
 
 .sidebar-cell {
@@ -458,6 +594,28 @@ button {
 .tab-active {
   color: var(--fg);
   background: var(--surface-2);
+}
+/* A split's entry: both titles, the glyph in front, a rule between. */
+.tab-split {
+  max-width: 340px;
+}
+/* Each title its own width, so a short one leaves room for a long one. */
+.tab-split .tab-title {
+  flex: 0 1 auto;
+}
+.tab-glyph {
+  flex: none;
+  fill: currentColor;
+  opacity: 0.7;
+}
+.tab-title-right {
+  padding-left: 6px;
+  border-left: 1px solid var(--hairline-strong);
+}
+/* Pulled off the bar towards a pane: over the document, not under it. */
+.tab.tab-lifted {
+  z-index: 30;
+  opacity: 0.92;
 }
 /* Lifted over its neighbours while it follows the pointer. */
 .tab-dragging {

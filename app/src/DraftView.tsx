@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react'
 
 import { Editor, type EditorHandle } from './editor/Editor'
+import type { Pane } from './types'
 
 export const UNTITLED = 'Untitled'
 
@@ -14,7 +15,10 @@ export interface DraftActions {
 }
 
 interface Props {
-  active: boolean
+  /** On screen. Both panes of a split are. */
+  visible: boolean
+  /** Which column of a split it fills; none when it has the window. */
+  pane?: Pane
   /** The tab's title, or whether there is anything to save, changed. */
   onState: (s: { title: string; dirty: boolean }) => void
   onSave: () => void
@@ -45,7 +49,7 @@ export function draftTitle(markdown: string): string {
  * saying so. Saving swaps the tab for a `DocumentView` on the new file.
  */
 export const DraftView = forwardRef<DraftActions, Props>(function DraftView(
-  { active, onState, onSave, onToast },
+  { visible, pane, onState, onSave, onToast },
   ref,
 ) {
   const editor = useRef<EditorHandle>(null)
@@ -91,7 +95,7 @@ export const DraftView = forwardRef<DraftActions, Props>(function DraftView(
   const [entered, setEntered] = useState(false)
 
   return (
-    <div className="docview" hidden={!active}>
+    <div className={`docview ${pane ? `in-pane pane-${pane}` : ''}`} hidden={!visible}>
       <main className="main">
         <div className="canvas">
           <div

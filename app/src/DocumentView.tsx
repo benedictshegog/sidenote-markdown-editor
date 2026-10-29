@@ -20,6 +20,7 @@ import {
   isUnread,
   type DocEntry,
   type ListenerStatus,
+  type Pane,
   type ToastAction,
   type StateView,
   type Suggestion,
@@ -140,11 +141,18 @@ export interface DocumentActions {
   menu(id: string): Promise<boolean>;
   /** Write any pending autosave now. */
   flush(): Promise<void>;
+  /** Put the cursor in the page. */
+  focus(): void;
 }
 
 interface Props {
   doc: DocEntry;
+  /** The tab the menu speaks to: in a split, the pane with the focus. */
   active: boolean;
+  /** On screen. Both panes of a split are, and only one is active. */
+  visible: boolean;
+  /** Which column of a split it fills; none when it has the window. */
+  pane?: Pane;
   onToast: (t: string, action?: ToastAction) => void;
   /** The document was relinked to a new path; the shell updates the tab. */
   onDocChanged: (doc: DocEntry) => void;
@@ -160,7 +168,7 @@ interface Loaded {
 
 export const DocumentView = forwardRef<DocumentActions, Props>(
   function DocumentView(
-    { doc, active, onToast, onDocChanged, focusOnLoad },
+    { doc, active, visible, pane, onToast, onDocChanged, focusOnLoad },
     ref,
   ) {
     const editor = useRef<EditorHandle>(null);
@@ -1254,6 +1262,7 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
       ref,
       () => ({
         flush: flushNow,
+        focus: () => editor.current?.focus(),
         menu: async (id: string) => {
           const cur = loadedRef.current;
           if (id.startsWith("copy_as:")) {
@@ -1427,8 +1436,8 @@ export const DocumentView = forwardRef<DocumentActions, Props>(
 
     return (
       <div
-        className={`docview ${sideOpen ? "panel-open" : ""} ${marginOpen ? "margin-open" : ""} ${fullWidth ? "full-width" : ""}`}
-        hidden={!active}
+        className={`docview ${sideOpen ? "panel-open" : ""} ${marginOpen ? "margin-open" : ""} ${fullWidth ? "full-width" : ""} ${pane ? `in-pane pane-${pane}` : ""}`}
+        hidden={!visible}
       >
         <div className="pill">
           <span className="pill-menu" onMouseDown={(e) => e.stopPropagation()}>

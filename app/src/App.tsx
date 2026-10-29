@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -14,9 +14,13 @@ import { Sidebar, SidebarGlyph } from './Sidebar'
 import { dismiss, dismissed, UpdateBar } from './Update'
 import { ReleaseNotes, WhatsNewPill } from './WhatsNew'
 import { takeUpdatedFrom } from './releaseNotes'
-import type { AppInfo, DocEntry, ToastAction, UpdateStatus } from './types'
+import type { AppInfo, DocEntry, Pane, ToastAction, UpdateStatus } from './types'
 
 const TABS_KEY = 'sidenote.tabs'
+/** The splits among the saved tabs, as pairs of paths. */
+const PAIRS_KEY = 'sidenote.pairs'
+/** Where the divider sits, as a share of the window: one for every split. */
+const SPLIT_KEY = 'sidenote.split'
 
 /** A document with no file yet: New Document, before Save. It lives in this
  *  window alone — nothing in `~/.sidenote` knows it — so it is not restored
@@ -33,6 +37,50 @@ type Tab = DocEntry | DraftTab
 
 function isDraft(t: Tab): t is DraftTab {
   return 'draft' in t
+}
+
+/** One entry in the tab bar: a tab alone, or two shown side by side. */
+type Group = Tab[]
+
+/** Two tabs that share a place in the bar, left then right. */
+type Pair = [left: string, right: string]
+
+/** The bar's entries. A pair holds only while its two tabs sit next to each
+ *  other in that order, so opening, closing or moving a tab cannot leave a
+ *  pane joined to the wrong neighbour; a stale pair is just ignored. */
+function groupsOf(tabs: Tab[], pairs: Pair[]): Group[] {
+  const leftOf = new Map(pairs.map(([l, r]) => [r, l]))
+  const out: Group[] = []
+  for (const t of tabs) {
+    const last = out[out.length - 1]
+    if (last?.length === 1 && leftOf.get(t.id) === last[0].id) last.push(t)
+    else out.push([t])
+  }
+  return out
+}
+
+/** A window in two columns: marks a split's entry in the tab bar. */
+function SplitGlyph() {
+  return (
+    <svg className="tab-glyph" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h7V6H4zm9 0v12h7V6h-7z"
+      />
+    </svg>
+  )
+}
+
+/** A tab lifting off a window: Move to New Tab, on a pane's head. */
+function TabGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        d="M4 8h3V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zm5-2v4H4v8h16v-8h-5V6H9z"
+      />
+    </svg>
+  )
 }
 
 /** A file name from a title: nothing a path would read as structure. */
@@ -74,8 +122,21 @@ export default function App() {
    *  draft just became, so the typing carries on across the save. */
   const [focusId, setFocusId] = useState<string | null>(null)
 
+  const [pairs, setPairs] = useState<Pair[]>([])
+  const [split, setSplit] = useState(() => {
+    const v = Number(localStorage.getItem(SPLIT_KEY))
+    return v >= 0.25 && v <= 0.75 ? v : 0.5
+  })
+
   const tabsRef = useRef<Tab[]>([])
   tabsRef.current = tabs
+  const pairsRef = useRef<Pair[]>([])
+  pairsRef.current = pairs
+  // Last session's layout, read before the first render's effects write the
+  // empty one over it. Reading at startup came too late, so no tab was ever
+  // restored.
+  const savedTabs = useRef(localStorage.getItem(TABS_KEY))
+  const savedPairs = useRef(localStorage.getItem(PAIRS_KEY))
   const activeRef = useRef<string | null>(null)
   activeRef.current = activeId
   const actions = useRef(new Map<string, DocumentActions>())
@@ -122,7 +183,13 @@ export default function App() {
   // no path and are not kept: closing the window asks about them instead.
   useEffect(() => {
     localStorage.setItem(TABS_KEY, JSON.stringify(tabs.flatMap((t) => (isDraft(t) ? [] : [t.path]))))
-  }, [tabs])
+    const saved = groupsOf(tabs, pairs).flatMap(([l, r]) => (r && !isDraft(l) && !isDraft(r) ? [[l.path, r.path]] : []))
+    localStorage.setItem(PAIRS_KEY, JSON.stringify(saved))
+  }, [tabs, pairs])
+
+  useEffect(() => {
+    localStorage.setItem(SPLIT_KEY, String(split))
+  }, [split])
 
   // The window title is never set from here. titleBarStyle is Overlay with
   // hiddenTitle so it is not drawn anyway, and setTitle relayouts the macOS
@@ -136,6 +203,86 @@ export default function App() {
   /** Tabs closed in this window, most recent last, with where each sat so
    *  Reopen Closed Tab puts it back rather than at the end. */
   const closedTabs = useRef<{ path: string; index: number }[]>([])
+
+  const groupsNow = () => groupsOf(tabsRef.current, pairsRef.current)
+
+  /** Lay the bar out as these groups. The refs move at once, so a second
+   *  change in the same event sees the first. */
+  const commitGroups = useCallback((gs: Group[]) => {
+    const ts = gs.flat()
+    const ps = gs.flatMap((g): Pair[] => (g.length === 2 ? [[g[0].id, g[1].id]] : []))
+    tabsRef.current = ts
+    pairsRef.current = ps
+    setTabs(ts)
+    setPairs(ps)
+  }, [])
+
+  /** The pane each split had the focus in last, by its left tab, so coming
+   *  back to a split puts the cursor where it was. */
+  const lastPane = useRef(new Map<string, string>())
+  useEffect(() => {
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === activeId))
+    if (g && activeId) lastPane.current.set(g[0].id, activeId)
+  }, [activeId, tabs, pairs])
+
+  /** The tab to show when a group is picked from the bar. */
+  const paneOf = (g: Group) => g.find((t) => t.id === lastPane.current.get(g[0].id)) ?? g[0]
+
+  /** Put `tab` into the split on screen, on `side`. Next to a lone tab that
+   *  makes a split; in a split it takes that pane, and the tab it pushes out
+   *  gets its own place in the bar, right after. `tab` leaves wherever it
+   *  was. Two columns at most, as a page of text barely fits in less. */
+  const putBeside = useCallback(
+    (tab: Tab, side: Pane) => {
+      const gs = groupsOf(tabsRef.current, pairsRef.current)
+        .map((g) => g.filter((t) => t.id !== tab.id))
+        .filter((g) => g.length)
+      const i = gs.findIndex((g) => g.some((t) => t.id === activeRef.current))
+      if (i < 0) return
+      const shown = gs[i]
+      if (shown.length === 1) gs[i] = side === 'left' ? [tab, shown[0]] : [shown[0], tab]
+      else {
+        const at = side === 'left' ? 0 : 1
+        const pair = [...shown]
+        pair[at] = tab
+        gs.splice(i, 1, pair, [shown[at]])
+      }
+      commitGroups(gs)
+      setActiveId(tab.id)
+    },
+    [commitGroups],
+  )
+
+  /** Give `id` its own place in the bar, right after the split it was in.
+   *  The other pane keeps the window. */
+  const separate = useCallback(
+    (id: string) => {
+      const gs = groupsOf(tabsRef.current, pairsRef.current)
+      const i = gs.findIndex((g) => g.length === 2 && g.some((t) => t.id === id))
+      if (i < 0) return
+      const out = gs[i].find((t) => t.id === id)!
+      const stay = gs[i].find((t) => t.id !== id)!
+      gs.splice(i, 1, [stay], [out])
+      commitGroups(gs)
+      setActiveId(stay.id)
+    },
+    [commitGroups],
+  )
+
+  /** The other pane of the split on screen, if there is a split. */
+  const otherPane = () => {
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === activeRef.current))
+    return g?.length === 2 ? g.find((t) => t.id !== activeRef.current)! : null
+  }
+
+  /** Move the focus to the pane on `side`, cursor and all. */
+  const focusPane = useCallback((side: Pane) => {
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === activeRef.current))
+    if (g?.length !== 2) return
+    const t = g[side === 'left' ? 0 : 1]
+    setActiveId(t.id)
+    ;(actions.current.get(t.id) ?? drafts.current.get(t.id))?.focus()
+  }, [])
 
   const openDoc = useCallback(
     async (doc: DocEntry, at?: number) => {
@@ -186,6 +333,21 @@ export default function App() {
     setSidebarOpen(false)
   }, [])
 
+  /** New Document Beside: an empty page next to the one in front. In a split
+   *  it takes the other pane, whose tab moves to a place of its own. */
+  const newBeside = useCallback(() => {
+    if (!activeRef.current) {
+      newDraft()
+      return
+    }
+    const id = `draft-${nextDraft.current++}`
+    const other = otherPane()
+    const side: Pane = other && groupsNow().some((g) => g[0].id === other.id) ? 'left' : 'right'
+    putBeside({ id, draft: true, title: UNTITLED, dirty: false }, side)
+    setSidebarOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newDraft, putBeside])
+
   const onDraftState = useCallback((id: string, s: { title: string; dirty: boolean }) => {
     setTabs((ts) => ts.map((t) => (t.id === id && isDraft(t) ? { ...t, ...s } : t)))
   }, [])
@@ -220,16 +382,20 @@ export default function App() {
       if (!doc) return
       drafts.current.delete(id)
       setFocusId(doc.id)
-      setTabs((ts) => {
-        // Saved over a file that is open already: that tab shows it (the
-        // watcher reloads it) and the draft goes.
-        if (ts.some((t) => t.id === doc.id)) return ts.filter((t) => t.id !== id).map((t) => (t.id === doc.id ? doc : t))
-        return ts.map((t) => (t.id === id ? doc : t))
-      })
+      // Saved over a file that is open already: that tab shows it (the
+      // watcher reloads it) and the draft goes. Otherwise the document takes
+      // the draft's place, in its pane if it had one.
+      const open = tabsRef.current.some((t) => t.id === doc.id)
+      commitGroups(
+        groupsNow()
+          .map((g) => (open ? g.filter((t) => t.id !== id) : g).map((t) => (t.id === id || t.id === doc.id ? doc : t)))
+          .filter((g) => g.length),
+      )
       setActiveId(doc.id)
       await refreshDocs()
     },
-    [refreshDocs, writeDraft],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commitGroups, refreshDocs, writeDraft],
   )
 
   /** Save, Don't Save, or Cancel. Three buttons, because two cannot offer
@@ -277,16 +443,21 @@ export default function App() {
       }
       // After the waits: the list may have moved while a dialog was up.
       const idx = tabsRef.current.findIndex((t) => t.id === id)
-      const next = tabsRef.current.filter((t) => t.id !== id)
+      const gs = groupsNow()
+      const gi = gs.findIndex((g) => g.some((t) => t.id === id))
+      const partner = gs[gi]?.find((t) => t.id !== id) ?? null
+      const next = gs.map((g) => g.filter((t) => t.id !== id)).filter((g) => g.length)
       if (reopenPath) closedTabs.current.push({ path: reopenPath, index: idx })
-      setTabs(next)
+      commitGroups(next)
       if (activeRef.current === id) {
-        const neighbour = next[Math.min(idx, next.length - 1)] ?? null
+        // Out of a split, the other pane takes the window.
+        const neighbour = partner ?? next[Math.min(gi, next.length - 1)]?.[0] ?? null
         setActiveId(neighbour?.id ?? null)
       }
       return true
     },
-    [confirmDraft, refreshDocs, writeDraft],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [commitGroups, confirmDraft, refreshDocs, writeDraft],
   )
 
   /** Settle every unsaved draft in this window — Save, Don't Save or Cancel
@@ -330,12 +501,14 @@ export default function App() {
     [closeTab, refreshDocs],
   )
 
+  // A split is one stop: cycling and ⌘-numbers go by the bar's entries.
   const cycleTab = useCallback((dir: 1 | -1) => {
-    const list = tabsRef.current
+    const list = groupsOf(tabsRef.current, pairsRef.current)
     if (list.length < 2) return
-    const i = list.findIndex((t) => t.id === activeRef.current)
+    const i = list.findIndex((g) => g.some((t) => t.id === activeRef.current))
     const n = (i + dir + list.length) % list.length
-    setActiveId(list[n].id)
+    setActiveId(paneOf(list[n]).id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs, ⌘1–⌘8 pick one by position and ⌘9
@@ -359,10 +532,10 @@ export default function App() {
       }
       if (digit && e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         e.preventDefault()
-        const list = tabsRef.current
+        const list = groupsOf(tabsRef.current, pairsRef.current)
         const n = Number(digit[1])
-        const tab = n === 9 ? list[list.length - 1] : list[n - 1]
-        if (tab) setActiveId(tab.id)
+        const g = n === 9 ? list[list.length - 1] : list[n - 1]
+        if (g) setActiveId(paneOf(g).id)
       }
     }
     window.addEventListener('keydown', onKey, true)
@@ -409,20 +582,53 @@ export default function App() {
   // Pointer events rather than HTML drag and drop: the window's file drop
   // handler sits on the native drag, and a tab should move within the bar, not
   // leave it. The order changes live as the tab passes a neighbour's midpoint;
-  // between those the dragged tab follows the pointer on a transform.
+  // between those the dragged tab follows the pointer on a transform. A split
+  // moves as one entry. Pulled down into the document, a lone tab lifts out of
+  // the bar and drops beside the document on screen, as a pane.
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const tabbarRef = useRef<HTMLDivElement>(null)
   const tabEls = useRef(new Map<string, HTMLDivElement>())
-  const drag = useRef<{ id: string; pointerId: number; startX: number; grab: number; x: number; moving: boolean } | null>(null)
+  const drag = useRef<{
+    /** The group's key: its first tab's id. */
+    id: string
+    pointerId: number
+    startX: number
+    grab: number
+    grabY: number
+    x: number
+    moving: boolean
+  } | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  /** The pane a drop would land in, while a tab or a pane head is over it. */
+  const [paneDrop, setPaneDrop] = useState<Pane | null>(null)
+  const paneDropRef = useRef<Pane | null>(null)
+  paneDropRef.current = paneDrop
+  /** A pane head is over the bar: let go and it becomes a tab. */
+  const [barDrop, setBarDrop] = useState(false)
+  const barDropRef = useRef(false)
+  barDropRef.current = barDrop
+
+  /** The pane under the pointer: by the divider in a split, by the middle
+   *  next to a lone document. Null above the document area. */
+  const paneAt = (x: number, y: number): Pane | null => {
+    const ws = workspaceRef.current?.getBoundingClientRect()
+    const bar = tabbarRef.current?.getBoundingClientRect()
+    if (!ws || !bar || y < bar.bottom + 8) return null
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === activeRef.current))
+    const cut = g?.length === 2 ? split : 0.5
+    return x - ws.left < ws.width * cut ? 'left' : 'right'
+  }
 
   /** Put the dragged tab under the pointer, measured from its slot. */
   const placeDragged = useCallback(() => {
     const d = drag.current
     const el = d && tabEls.current.get(d.id)
-    if (!d || !el || !d.moving) return
+    if (!d || !el || !d.moving || paneDropRef.current) return
     // offsetLeft counts from the offset parent, so the pointer has to as well.
     const origin = (el.offsetParent as HTMLElement).getBoundingClientRect().left
-    const first = tabEls.current.get(tabsRef.current[0].id)!
-    const last = tabEls.current.get(tabsRef.current[tabsRef.current.length - 1].id)!
+    const gs = groupsOf(tabsRef.current, pairsRef.current)
+    const first = tabEls.current.get(gs[0][0].id)!
+    const last = tabEls.current.get(gs[gs.length - 1][0].id)!
     // Kept within the run of tabs, so it cannot be pulled over the controls.
     const left = Math.min(
       Math.max(d.x - origin - d.grab, first.offsetLeft),
@@ -432,16 +638,17 @@ export default function App() {
   }, [])
 
   // A reorder moves the slot under the tab; keep the tab where the pointer is.
-  useLayoutEffect(placeDragged, [tabs, placeDragged])
+  useLayoutEffect(placeDragged, [tabs, pairs, placeDragged])
 
   const onTabPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.tab-close')) return
-    const el = e.currentTarget
+    const r = e.currentTarget.getBoundingClientRect()
     drag.current = {
       id,
       pointerId: e.pointerId,
       startX: e.clientX,
-      grab: e.clientX - el.getBoundingClientRect().left,
+      grab: e.clientX - r.left,
+      grabY: e.clientY - r.top,
       x: e.clientX,
       moving: false,
     }
@@ -451,28 +658,40 @@ export default function App() {
     const d = drag.current
     if (!d || d.pointerId !== e.pointerId) return
     d.x = e.clientX
+    const el = e.currentTarget
     if (!d.moving) {
       // A few pixels of slack, so a click that wobbles is still a click.
-      if (Math.abs(e.clientX - d.startX) < 4) return
+      if (Math.abs(e.clientX - d.startX) < 4 && paneAt(e.clientX, e.clientY) === null) return
       d.moving = true
-      e.currentTarget.setPointerCapture(e.pointerId)
+      el.setPointerCapture(e.pointerId)
       setDraggingId(d.id)
-      setActiveId(d.id)
     }
-    const el = e.currentTarget
+    const gs = groupsOf(tabsRef.current, pairsRef.current)
+    const from = gs.findIndex((g) => g[0].id === d.id)
+    // Only a lone tab can become a pane, and not beside itself.
+    const lone = gs[from]?.length === 1 && !gs[from].some((t) => t.id === activeRef.current)
+    const pane = lone ? paneAt(e.clientX, e.clientY) : null
+    setPaneDrop(pane)
+    paneDropRef.current = pane
+    if (pane) {
+      // Off the bar: the tab follows the pointer freely, over the document.
+      const origin = (el.offsetParent as HTMLElement).getBoundingClientRect()
+      const dx = e.clientX - origin.left - d.grab - el.offsetLeft
+      const dy = e.clientY - origin.top - d.grabY - el.offsetTop
+      el.style.transform = `translate(${dx}px, ${dy}px)`
+      return
+    }
     const centre = e.clientX - d.grab + el.offsetWidth / 2
-    const list = tabsRef.current
-    const others = list.filter((t) => t.id !== d.id)
+    const others = gs.filter((_, i) => i !== from)
     let to = 0
-    for (const t of others) {
-      const r = tabEls.current.get(t.id)!.getBoundingClientRect()
+    for (const g of others) {
+      const r = tabEls.current.get(g[0].id)!.getBoundingClientRect()
       if (centre > r.left + r.width / 2) to++
     }
-    const from = list.findIndex((t) => t.id === d.id)
     if (to !== from) {
       const next = [...others]
-      next.splice(to, 0, list[from])
-      setTabs(next)
+      next.splice(to, 0, gs[from])
+      commitGroups(next)
     } else {
       placeDragged()
     }
@@ -485,6 +704,70 @@ export default function App() {
     if (!d.moving) return
     e.currentTarget.style.transform = ''
     setDraggingId(null)
+    const pane = paneDropRef.current
+    setPaneDrop(null)
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x[0].id === d.id)
+    if (!g) return
+    if (pane && e.type === 'pointerup') putBeside(g[0], pane)
+    else if (!pane) setActiveId(paneOf(g).id)
+  }
+
+  // ---- dragging pane heads ---------------------------------------------------
+
+  // A pane's head is its handle, as in Rex: up into the bar and the pane
+  // becomes a tab of its own; across onto the other pane and the two swap.
+  const headDrag = useRef<{ id: string; pointerId: number; startX: number; startY: number; moving: boolean } | null>(null)
+
+  const onHeadPointerDown = (e: PointerEvent<HTMLDivElement>, id: string) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return
+    setActiveId(id)
+    headDrag.current = { id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moving: false }
+  }
+
+  const onHeadPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = headDrag.current
+    if (!d || d.pointerId !== e.pointerId) return
+    if (!d.moving) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return
+      d.moving = true
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+    const bar = tabbarRef.current?.getBoundingClientRect()
+    const onBar = !!bar && e.clientY < bar.bottom
+    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === d.id))
+    const own: Pane = g?.[0].id === d.id ? 'left' : 'right'
+    const pane = onBar ? null : paneAt(e.clientX, e.clientY)
+    setBarDrop(onBar)
+    setPaneDrop(pane && pane !== own ? pane : null)
+  }
+
+  const endHeadDrag = (e: PointerEvent<HTMLDivElement>) => {
+    const d = headDrag.current
+    if (!d || d.pointerId !== e.pointerId) return
+    headDrag.current = null
+    const swap = paneDropRef.current
+    const toBar = barDropRef.current
+    setPaneDrop(null)
+    setBarDrop(false)
+    if (!d.moving || e.type !== 'pointerup') return
+    if (toBar) {
+      separate(d.id)
+      setActiveId(d.id)
+    } else if (swap) {
+      commitGroups(groupsNow().map((g) => (g.length === 2 && g.some((t) => t.id === d.id) ? [g[1], g[0]] : g)))
+    }
+  }
+
+  // ---- the divider -----------------------------------------------------------
+
+  const dividerDrag = useRef<number | null>(null)
+
+  const onDividerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (dividerDrag.current !== e.pointerId) return
+    const ws = workspaceRef.current?.getBoundingClientRect()
+    if (!ws) return
+    // Neither page gets narrower than a quarter of the window.
+    setSplit(Math.min(0.75, Math.max(0.25, (e.clientX - ws.left) / ws.width)))
   }
 
   // ---- closing and quitting ----------------------------------------------
@@ -603,6 +886,39 @@ export default function App() {
         case 'new_doc':
           newDraft()
           return
+        case 'new_beside':
+          newBeside()
+          return
+        case 'join_next': {
+          // The next entry in the bar comes into the split, in the other
+          // pane's place if there is a split already.
+          const gs = groupsNow()
+          const i = gs.findIndex((g) => g.some((t) => t.id === activeRef.current))
+          const next = i < 0 ? undefined : gs[(i + 1) % gs.length]
+          if (!next || next === gs[i]) {
+            showToast('Open another tab to show beside this one.')
+            return
+          }
+          if (next.length === 2) {
+            showToast('The next tab is a split already.')
+            return
+          }
+          const other = otherPane()
+          putBeside(next[0], other && other.id === gs[i][0].id ? 'left' : 'right')
+          return
+        }
+        case 'separate_panes': {
+          // The pane in front keeps the window.
+          const other = otherPane()
+          if (other) separate(other.id)
+          return
+        }
+        case 'focus_pane_left':
+          focusPane('left')
+          return
+        case 'focus_pane_right':
+          focusPane('right')
+          return
         case 'open':
           await openFileDialog()
           return
@@ -698,7 +1014,8 @@ export default function App() {
     return () => {
       void un.then((f) => f())
     }
-  }, [checkUpdate, closeTab, cycleTab, docs, info, newDraft, openFileDialog, openPath, refreshDocs, reopenClosedTab, saveDraft, showToast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkUpdate, closeTab, cycleTab, docs, focusPane, info, newBeside, newDraft, openFileDialog, openPath, putBeside, refreshDocs, reopenClosedTab, saveDraft, separate, showToast])
 
   // ---- startup ------------------------------------------------------------
 
@@ -721,11 +1038,28 @@ export default function App() {
         // Restore last session's tabs, skipping files that are gone.
         let saved: string[] = []
         try {
-          saved = JSON.parse(localStorage.getItem(TABS_KEY) ?? '[]')
+          saved = JSON.parse(savedTabs.current ?? '[]')
         } catch {
           saved = []
         }
         for (const p of saved) await openPath(p, true)
+        // And the splits among them. A pair whose file is gone is dropped
+        // by `groupsOf`, since its two tabs are no longer neighbours.
+        let saidPairs: [string, string][] = []
+        try {
+          saidPairs = JSON.parse(savedPairs.current ?? '[]')
+        } catch {
+          saidPairs = []
+        }
+        // The last open has rendered, so the ref holds every restored tab.
+        await new Promise((r) => setTimeout(r, 0))
+        const byPath = new Map(tabsRef.current.flatMap((t) => (isDraft(t) ? [] : [[t.path, t.id] as const])))
+        const restored = saidPairs.flatMap(([l, r]): Pair[] => {
+          const a = byPath.get(l)
+          const b = byPath.get(r)
+          return a && b ? [[a, b]] : []
+        })
+        if (restored.length) commitGroups(groupsOf(tabsRef.current, restored))
       }
       // First paint is decided: show the window.
       const win = getCurrentWindow()
@@ -759,6 +1093,16 @@ export default function App() {
   // ---- render -------------------------------------------------------------
 
   const sideOpen = sidebarOpen && tabs.length > 0
+  const groups = groupsOf(tabs, pairs)
+  /** The bar entry on screen: one tab, or the two of a split. */
+  const shown = groups.find((g) => g.some((t) => t.id === activeId)) ?? null
+  const paneSide = (id: string): Pane | undefined =>
+    shown?.length === 2 ? (shown[0].id === id ? 'left' : shown[1].id === id ? 'right' : undefined) : undefined
+
+  /** Close every tab in a bar entry; a Cancel on a draft stops there. */
+  const closeGroup = async (g: Group) => {
+    for (const t of g) if (!(await closeTab(t.id))) return
+  }
 
   return (
     <div className={`app ${sideOpen ? 'sidebar-open' : ''} ${info?.dev ? 'is-dev' : ''} ${fullscreen ? 'is-fullscreen' : ''}`}>
@@ -772,8 +1116,12 @@ export default function App() {
         />
       </div>
 
-      <div className="workspace">
-        <div className={`tabbar ${sideOpen ? '' : 'tabbar-inset'}`} data-tauri-drag-region>
+      <div
+        ref={workspaceRef}
+        className={`workspace ${shown?.length === 2 ? 'is-split' : ''}`}
+        style={{ '--split': `${split * 100}%` } as CSSProperties}
+      >
+        <div ref={tabbarRef} className={`tabbar ${sideOpen ? '' : 'tabbar-inset'} ${barDrop ? 'tabbar-drop' : ''}`} data-tauri-drag-region>
           {/* ⇧⌘1 is the shortcut; this is the same toggle with a face. It moves
               into the sidebar head while the pane is open. */}
           {tabs.length > 0 && !sideOpen && (
@@ -781,40 +1129,49 @@ export default function App() {
               <SidebarGlyph />
             </button>
           )}
-          {tabs.map((t, i) => (
-            <div
-              key={t.id}
-              ref={(el) => {
-                if (el) tabEls.current.set(t.id, el)
-                else tabEls.current.delete(t.id)
-              }}
-              className={`tab ${t.id === activeId ? 'tab-active' : ''} ${isDraft(t) && t.dirty ? 'tab-dirty' : ''} ${t.id === draggingId ? 'tab-dragging' : ''} ${showTabKeys && tabKey(i, tabs.length) ? 'tab-keyed' : ''}`}
-              title={isDraft(t) ? 'Not saved yet (⌘S)' : t.path}
-              onClick={() => setActiveId(t.id)}
-              onPointerDown={(e) => onTabPointerDown(e, t.id)}
-              onPointerMove={onTabPointerMove}
-              onPointerUp={endTabDrag}
-              onPointerCancel={endTabDrag}
-              onAuxClick={(e) => {
-                if (e.button === 1) void closeTab(t.id)
-              }}
-            >
-              <span className="tab-title">{t.title}</span>
-              <button
-                type="button"
-                className="tab-close"
-                title="Close tab (⌘W)"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void closeTab(t.id)
+          {groups.map((g, i) => {
+            const key = g[0].id
+            const dirty = g.some((t) => isDraft(t) && t.dirty)
+            return (
+              <div
+                key={key}
+                ref={(el) => {
+                  if (el) tabEls.current.set(key, el)
+                  else tabEls.current.delete(key)
+                }}
+                className={`tab ${g === shown ? 'tab-active' : ''} ${g.length === 2 ? 'tab-split' : ''} ${dirty ? 'tab-dirty' : ''} ${key === draggingId ? 'tab-dragging' : ''} ${key === draggingId && paneDrop ? 'tab-lifted' : ''} ${showTabKeys && tabKey(i, groups.length) ? 'tab-keyed' : ''}`}
+                title={g.map((t) => (isDraft(t) ? 'Not saved yet (⌘S)' : t.path)).join('\n')}
+                onClick={() => setActiveId(paneOf(g).id)}
+                onPointerDown={(e) => onTabPointerDown(e, key)}
+                onPointerMove={onTabPointerMove}
+                onPointerUp={endTabDrag}
+                onPointerCancel={endTabDrag}
+                onAuxClick={(e) => {
+                  if (e.button === 1) void closeGroup(g)
                 }}
               >
-                <span className="tab-x">×</span>
-                <span className="tab-dot">•</span>
-                <span className="tab-key">{tabKey(i, tabs.length)}</span>
-              </button>
-            </div>
-          ))}
+                {g.length === 2 && <SplitGlyph />}
+                {g.map((t, j) => (
+                  <span key={t.id} className={`tab-title ${j ? 'tab-title-right' : ''}`}>
+                    {t.title}
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  className="tab-close"
+                  title={g.length === 2 ? 'Close both panes' : 'Close tab (⌘W)'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void closeGroup(g)
+                  }}
+                >
+                  <span className="tab-x">×</span>
+                  <span className="tab-dot">•</span>
+                  <span className="tab-key">{tabKey(i, groups.length)}</span>
+                </button>
+              </div>
+            )
+          })}
           {/* The start screen has its own Open button, so this would be a duplicate. */}
           {tabs.length > 0 && (
             <button type="button" className="tab-add" title="Open… (⌘O)" onClick={() => void openFileDialog()}>
@@ -846,37 +1203,84 @@ export default function App() {
           </main>
         )}
 
-        {tabs.map((t) =>
-          isDraft(t) ? (
-            <DraftView
-              key={t.id}
-              ref={(h) => {
-                if (h) drafts.current.set(t.id, h)
-                else drafts.current.delete(t.id)
+        {tabs.map((t) => {
+          const pane = paneSide(t.id)
+          return (
+            // A click anywhere in a pane gives it the focus, and with it the
+            // menu. `contents`, so the view still sits in the workspace.
+            <div key={t.id} className="pane-slot" onPointerDownCapture={() => pane && setActiveId(t.id)}>
+              {isDraft(t) ? (
+                <DraftView
+                  ref={(h) => {
+                    if (h) drafts.current.set(t.id, h)
+                    else drafts.current.delete(t.id)
+                  }}
+                  visible={!!shown?.includes(t)}
+                  pane={pane}
+                  onState={(s) => onDraftState(t.id, s)}
+                  onSave={() => void saveDraft(t.id)}
+                  onToast={showToast}
+                />
+              ) : (
+                <DocumentView
+                  ref={(h) => {
+                    if (h) actions.current.set(t.id, h)
+                    else actions.current.delete(t.id)
+                  }}
+                  doc={t}
+                  active={t.id === activeId}
+                  visible={!!shown?.includes(t)}
+                  pane={pane}
+                  focusOnLoad={t.id === focusId}
+                  onToast={showToast}
+                  onDocChanged={(d) => {
+                    setTabs((ts) => ts.map((x) => (x.id === d.id ? d : x)))
+                    void refreshDocs()
+                  }}
+                />
+              )}
+            </div>
+          )
+        })}
+
+        {shown?.length === 2 && (
+          <>
+            {shown.map((t, j) => (
+              <div
+                key={t.id}
+                className={`pane-head pane-${j ? 'right' : 'left'} ${t.id === activeId ? 'pane-head-active' : ''}`}
+                title={isDraft(t) ? 'Not saved yet (⌘S)' : t.path}
+                onPointerDown={(e) => onHeadPointerDown(e, t.id)}
+                onPointerMove={onHeadPointerMove}
+                onPointerUp={endHeadDrag}
+                onPointerCancel={endHeadDrag}
+              >
+                <span className="pane-head-title">{t.title}</span>
+                <button type="button" className="pane-head-btn" title="Move to New Tab" onClick={() => separate(t.id)}>
+                  <TabGlyph />
+                </button>
+                <button type="button" className="pane-head-btn" title="Close (⌘W)" onClick={() => void closeTab(t.id)}>
+                  ×
+                </button>
+              </div>
+            ))}
+            <div
+              className="pane-divider"
+              title="Drag to resize; double-click to even up"
+              onPointerDown={(e) => {
+                if (e.button !== 0) return
+                dividerDrag.current = e.pointerId
+                e.currentTarget.setPointerCapture(e.pointerId)
               }}
-              active={t.id === activeId}
-              onState={(s) => onDraftState(t.id, s)}
-              onSave={() => void saveDraft(t.id)}
-              onToast={showToast}
+              onPointerMove={onDividerMove}
+              onPointerUp={() => (dividerDrag.current = null)}
+              onPointerCancel={() => (dividerDrag.current = null)}
+              onDoubleClick={() => setSplit(0.5)}
             />
-          ) : (
-            <DocumentView
-              key={t.id}
-              ref={(h) => {
-                if (h) actions.current.set(t.id, h)
-                else actions.current.delete(t.id)
-              }}
-              doc={t}
-              active={t.id === activeId}
-              focusOnLoad={t.id === focusId}
-              onToast={showToast}
-              onDocChanged={(d) => {
-                setTabs((ts) => ts.map((x) => (x.id === d.id ? d : x)))
-                void refreshDocs()
-              }}
-            />
-          ),
+          </>
         )}
+
+        {paneDrop && <div className={`pane-drop pane-drop-${paneDrop} ${shown?.length === 2 ? 'pane-drop-split' : ''}`} />}
 
         {update && update.latest && (
           <UpdateBar

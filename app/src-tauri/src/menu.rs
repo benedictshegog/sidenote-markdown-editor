@@ -96,6 +96,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         true,
         &[
             &MenuItem::with_id(app, "new_doc", "New Document", true, Some("CmdOrCtrl+N"))?,
+            // Split Right, in a terminal's words: an empty page next to the
+            // one in front.
+            &MenuItem::with_id(app, "new_beside", "New Document Beside", true, Some("CmdOrCtrl+D"))?,
             &MenuItem::with_id(app, "new_window", "New Window", true, Some("CmdOrCtrl+Shift+N"))?,
             &MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?,
             &recent_menu,
@@ -179,6 +182,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         &[
             &MenuItem::with_id(app, "next_tab", "Next Tab", true, Some("CmdOrCtrl+Shift+]"))?,
             &MenuItem::with_id(app, "prev_tab", "Previous Tab", true, Some("CmdOrCtrl+Shift+["))?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "join_next", "Show Next Tab Beside", true, Some("CmdOrCtrl+Shift+D"))?,
+            &MenuItem::with_id(app, "separate_panes", "Separate Panes", true, None::<&str>)?,
+            &MenuItem::with_id(app, "focus_pane_left", "Focus Left Pane", true, Some("CmdOrCtrl+Alt+Left"))?,
+            &MenuItem::with_id(app, "focus_pane_right", "Focus Right Pane", true, Some("CmdOrCtrl+Alt+Right"))?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "toggle_sidebar", "Toggle Sidebar", true, Some("CmdOrCtrl+Shift+1"))?,
             &MenuItem::with_id(app, "toggle_threads", "Toggle Comments", true, Some("CmdOrCtrl+Shift+2"))?,

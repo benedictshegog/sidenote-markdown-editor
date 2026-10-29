@@ -192,6 +192,9 @@ export interface AppInfo {
 }
 
 /** A button on a toast, for the one thing the reader may want to do about it. */
+/** A column of a two-pane split. */
+export type Pane = 'left' | 'right'
+
 export interface ToastAction {
   label: string
   run: () => void

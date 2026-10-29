@@ -1,5 +1,12 @@
 # Release notes
 
+## Unreleased
+
+- Show two documents side by side. Drag a tab down into the page to put it beside the one you are reading, or use New Document Beside (⌘D) to start a new one next to it.
+- Drag a pane's title bar up into the tabs to give it a tab of its own again, or across to swap the two sides. Drag the line between them to resize.
+- Show Next Tab Beside (⇧⌘D) joins the next tab into the split, and ⌥⌘← and ⌥⌘→ move between the two panes.
+- Your open tabs, and any split, come back when you next open Sidenote.
+
 ## 0.1.43 (2026-10-21)
 
 - Each suggested edit is now one card in the margin: the change, Accept and Reject, and Claude's reason, with a box to reply. Claude no longer leaves its reason on a second card beside it.
