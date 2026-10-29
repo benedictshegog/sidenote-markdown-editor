@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.44 (2026-10-29)
 
 - Show two documents side by side. Drag a tab down into the page to put it beside the one you are reading, or use New Document Beside (⌘D) to start a new one next to it.
 - Drag a pane's title bar up into the tabs to give it a tab of its own again, or across to swap the two sides. Drag the line between them to resize.
