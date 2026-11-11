@@ -20,6 +20,7 @@ import type { ApplyResult, Selector, Suggestion, Thread } from "../types";
 import { codeTheme } from "./codeTheme";
 import { DIAGRAM_LOADING, renderDiagram } from "./diagrams";
 import { commentMark, DRAFT_ID } from "./commentMark";
+import { allowCommentsInCode, createCodeComments } from "./codeComments";
 import {
   presencePlugin,
   setPresenceMeta,
@@ -252,9 +253,15 @@ export const Editor = forwardRef<EditorHandle, Props>(
     propsRef.current = props;
     const suppressChange = useRef(0);
     const imagesRef = useRef<ImageResolver | null>(null);
+    const codeCommentsRef = useRef<ReturnType<typeof createCodeComments> | null>(
+      null,
+    );
 
     useEffect(() => {
       const root = rootRef.current!;
+      // Comment highlights inside code blocks. See codeComments.ts.
+      const codeComments = createCodeComments();
+      codeCommentsRef.current = codeComments;
       const images = new ImageResolver(() => propsRef.current.docPath);
       imagesRef.current = images;
       const crepe = new Crepe({
@@ -276,6 +283,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
           // shows the picture alone until the reader asks for the source.
           [Crepe.Feature.CodeMirror]: {
             theme: codeTheme,
+            extensions: [codeComments.extension],
             renderPreview: renderDiagram,
             previewOnlyByDefault: true,
             previewLabel: "Diagram",
@@ -315,6 +323,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
           ctx.set(remarkStringifyOptionsCtx, { ...stringifyOptions });
           ctx.set(remarkGFMPlugin.options.key, { tablePipeAlign: false });
           keepImageAltText(ctx);
+          allowCommentsInCode(ctx);
           // Cmd-click a link to open it, the way Word, Pages and VS Code do.
           // Plain click keeps placing the caret: in an editor a link is text you
           // may want to edit as often as follow. (Not Alt — in WebKit that means
@@ -360,6 +369,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
         })
         .use(frontmatter)
         .use(commentMark)
+        .use($prose(() => codeComments.plugin))
         .use($prose(() => presencePlugin))
         .use($prose(() => suggestionPlugin))
         .use($prose(() => findPlugin))
@@ -419,6 +429,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
         readyRef.current = false;
         crepeRef.current = null;
         imagesRef.current = null;
+        codeCommentsRef.current = null;
         void created.then(() => crepe.destroy()).catch(() => {});
         images.dispose();
       };
@@ -783,6 +794,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
       setSelected: (id) => {
         const root = rootRef.current;
         if (!root) return;
+        // CodeMirror draws its own highlights, and redraws them: tell it,
+        // or the class set below is gone at its next repaint.
+        codeCommentsRef.current?.setSelected(id);
         root
           .querySelectorAll(".sidenote-comment-selected")
           .forEach((el) => el.classList.remove("sidenote-comment-selected"));
