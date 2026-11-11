@@ -225,19 +225,29 @@ export default function App() {
     if (g && activeId) lastPane.current.set(g[0].id, activeId)
   }, [activeId, tabs, pairs])
 
+  /** The tab that had the focus before the one that has it now. */
+  const prevActive = useRef<string | null>(null)
+  const seenActive = useRef<string | null>(null)
+  useEffect(() => {
+    if (activeId === seenActive.current) return
+    prevActive.current = seenActive.current
+    seenActive.current = activeId
+  }, [activeId])
+
   /** The tab to show when a group is picked from the bar. */
   const paneOf = (g: Group) => g.find((t) => t.id === lastPane.current.get(g[0].id)) ?? g[0]
 
-  /** Put `tab` into the split on screen, on `side`. Next to a lone tab that
-   *  makes a split; in a split it takes that pane, and the tab it pushes out
-   *  gets its own place in the bar, right after. `tab` leaves wherever it
-   *  was. Two columns at most, as a page of text barely fits in less. */
+  /** Put `tab` into the split on screen (or the entry holding `besideId`), on
+   *  `side`. Next to a lone tab that makes a split; in a split it takes that
+   *  pane, and the tab it pushes out gets its own place in the bar, right
+   *  after. `tab` leaves wherever it was. Two columns at most, as a page of
+   *  text barely fits in less. */
   const putBeside = useCallback(
-    (tab: Tab, side: Pane) => {
+    (tab: Tab, side: Pane, besideId: string | null = activeRef.current) => {
       const gs = groupsOf(tabsRef.current, pairsRef.current)
         .map((g) => g.filter((t) => t.id !== tab.id))
         .filter((g) => g.length)
-      const i = gs.findIndex((g) => g.some((t) => t.id === activeRef.current))
+      const i = gs.findIndex((g) => g.some((t) => t.id === besideId))
       if (i < 0) return
       const shown = gs[i]
       if (shown.length === 1) gs[i] = side === 'left' ? [tab, shown[0]] : [shown[0], tab]
@@ -595,6 +605,7 @@ export default function App() {
     startX: number
     grab: number
     grabY: number
+    startY: number
     x: number
     moving: boolean
   } | null>(null)
@@ -617,6 +628,24 @@ export default function App() {
     const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x.some((t) => t.id === activeRef.current))
     const cut = g?.length === 2 ? split : 0.5
     return x - ws.left < ws.width * cut ? 'left' : 'right'
+  }
+
+  /** The tab a dragged entry would land beside, if it can become a pane: the
+   *  document on screen, or, when the dragged tab is that document, the lone
+   *  tab that was in front before it, else its nearest lone neighbour. */
+  const besideFor = (gs: Group[], from: number): string | null => {
+    const g = gs[from]
+    if (g?.length !== 1) return null
+    const active = activeRef.current
+    if (g[0].id !== active) return active
+    const lone = (x: Group | undefined) => (x?.length === 1 && x !== g ? x[0].id : null)
+    const before = lone(gs.find((x) => x.some((t) => t.id === prevActive.current)))
+    if (before) return before
+    for (let n = 1; n < gs.length; n++) {
+      const near = lone(gs[from + n]) ?? lone(gs[from - n])
+      if (near) return near
+    }
+    return null
   }
 
   /** Put the dragged tab under the pointer, measured from its slot. */
@@ -649,6 +678,7 @@ export default function App() {
       startX: e.clientX,
       grab: e.clientX - r.left,
       grabY: e.clientY - r.top,
+      startY: e.clientY,
       x: e.clientX,
       moving: false,
     }
@@ -660,17 +690,19 @@ export default function App() {
     d.x = e.clientX
     const el = e.currentTarget
     if (!d.moving) {
-      // A few pixels of slack, so a click that wobbles is still a click.
-      if (Math.abs(e.clientX - d.startX) < 4 && paneAt(e.clientX, e.clientY) === null) return
+      // A few pixels of slack, so a click that wobbles is still a click. In
+      // any direction: the pointer is not captured yet, so a pull straight
+      // down has to start the drag before it leaves the tab, or the tab
+      // never hears of it again.
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return
       d.moving = true
       el.setPointerCapture(e.pointerId)
       setDraggingId(d.id)
     }
     const gs = groupsOf(tabsRef.current, pairsRef.current)
     const from = gs.findIndex((g) => g[0].id === d.id)
-    // Only a lone tab can become a pane, and not beside itself.
-    const lone = gs[from]?.length === 1 && !gs[from].some((t) => t.id === activeRef.current)
-    const pane = lone ? paneAt(e.clientX, e.clientY) : null
+    // Only a lone tab can become a pane, and it needs a document to go beside.
+    const pane = besideFor(gs, from) ? paneAt(e.clientX, e.clientY) : null
     setPaneDrop(pane)
     paneDropRef.current = pane
     if (pane) {
@@ -706,10 +738,14 @@ export default function App() {
     setDraggingId(null)
     const pane = paneDropRef.current
     setPaneDrop(null)
-    const g = groupsOf(tabsRef.current, pairsRef.current).find((x) => x[0].id === d.id)
-    if (!g) return
-    if (pane && e.type === 'pointerup') putBeside(g[0], pane)
-    else if (!pane) setActiveId(paneOf(g).id)
+    const gs = groupsNow()
+    const at = gs.findIndex((x) => x[0].id === d.id)
+    if (at < 0) return
+    const g = gs[at]
+    if (pane && e.type === 'pointerup') {
+      const beside = besideFor(gs, at)
+      if (beside) putBeside(g[0], pane, beside)
+    } else if (!pane) setActiveId(paneOf(g).id)
   }
 
   // ---- dragging pane heads ---------------------------------------------------

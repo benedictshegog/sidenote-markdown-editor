@@ -1,5 +1,11 @@
 # Release notes
 
+## Unreleased
+
+- You can now comment on text inside a code block. Select the code and press ⇧⌘M.
+- Dragging a tab straight down into the page now starts the split every time. Before, the tab had to move sideways first.
+- You can drag the tab you are reading down into the page too. It lands beside the tab you had open before it.
+
 ## 0.1.44 (2026-10-29)
 
 - Show two documents side by side. Drag a tab down into the page to put it beside the one you are reading, or use New Document Beside (⌘D) to start a new one next to it.
