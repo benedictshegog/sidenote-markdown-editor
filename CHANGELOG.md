@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- You can now comment on text inside a code block. Select the code and press ⇧⌘M.
+- You can now comment on text inside a code block. Select the code and click the Comment button that appears, or press ⇧⌘M.
 - Dragging a tab straight down into the page now starts the split every time. Before, the tab had to move sideways first.
 - You can drag the tab you are reading down into the page too. It lands beside the tab you had open before it.
 

@@ -260,7 +260,11 @@ export const Editor = forwardRef<EditorHandle, Props>(
     useEffect(() => {
       const root = rootRef.current!;
       // Comment highlights inside code blocks. See codeComments.ts.
-      const codeComments = createCodeComments();
+      const codeComments = createCodeComments({
+        icon: COMMENT_ICON,
+        title: "Comment (⌘⇧M)",
+        onComment: () => propsRef.current.onRequestComment(),
+      });
       codeCommentsRef.current = codeComments;
       const images = new ImageResolver(() => propsRef.current.docPath);
       imagesRef.current = images;

@@ -130,8 +130,19 @@ function paintPlaceholder(code: HTMLElement, text: string, { ranges, selected }:
   code.replaceChildren(...parts)
 }
 
-/** One editor's link between its comment marks and its code blocks. */
-export function createCodeComments(): {
+/** The floating Comment button for a selection inside a code block. */
+export interface CodeCommentButton {
+  /** The icon, as SVG markup. */
+  icon: string
+  title: string
+  onComment(): void
+}
+
+/** One editor's link between its comment marks and its code blocks. With
+ *  `button`, a selection in a code block gets the Comment button Crepe's
+ *  toolbar gives a selection in prose: that toolbar only shows while the
+ *  ProseMirror editor has the focus, and in a code block CodeMirror has it. */
+export function createCodeComments(button?: CodeCommentButton): {
   /** For the CodeMirror feature's `extensions`. */
   extension: Extension
   /** For the ProseMirror editor. */
@@ -185,19 +196,100 @@ export function createCodeComments(): {
     return { destroy: later }
   })
 
+  /** Build the button and keep it over the selection. Dressed as Crepe's
+   *  toolbar, and placed in the same parent, so the two look like one. */
+  const floatButton = (view: EditorView, { icon, title, onComment }: CodeCommentButton) => {
+    const parent = view.dom.parentElement
+    if (!parent) return null
+    const tip = document.createElement('div')
+    tip.className = 'milkdown-toolbar sidenote-code-toolbar'
+    tip.dataset.show = 'false'
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'toolbar-item'
+    btn.title = title
+    btn.innerHTML = icon
+    // The click must not take the focus, and with it the selection.
+    btn.addEventListener('mousedown', (e) => e.preventDefault())
+    btn.addEventListener('click', onComment)
+    tip.appendChild(btn)
+    parent.appendChild(tip)
+
+    let pressed = false
+    const place = () => {
+      tip.dataset.show = 'false'
+      // Not mid-drag: the button would sit on the text being selected.
+      if (pressed || view.isDestroyed || view.state.selection.empty) return
+      const active = (view.root as Document | ShadowRoot).activeElement
+      const host = active?.closest<HTMLElement>('.cm-editor')
+      const cm = host && view.dom.contains(host) ? CodeMirror.findFromDOM(host) : null
+      if (!cm) return
+      const { from, to, empty } = cm.state.selection.main
+      if (empty) return
+      const a = cm.coordsAtPos(from)
+      const b = cm.coordsAtPos(to)
+      if (!a || !b) return
+      tip.dataset.show = 'true'
+      const box = parent.getBoundingClientRect()
+      // Over the middle of a one-line selection; over the start of a longer one.
+      const x = (Math.abs(a.top - b.top) < 2 ? (a.left + b.left) / 2 : a.left) - box.left
+      const left = Math.max(0, Math.min(x - tip.offsetWidth / 2, box.width - tip.offsetWidth))
+      tip.style.left = `${left}px`
+      tip.style.top = `${a.top - box.top - tip.offsetHeight - 8}px`
+    }
+    // CodeMirror reports its selection from inside its own update, where it
+    // cannot be measured; wait until that is over.
+    let waiting = false
+    const soon = () => {
+      if (waiting) return
+      waiting = true
+      setTimeout(() => {
+        waiting = false
+        place()
+      }, 0)
+    }
+    const down = (e: MouseEvent) => {
+      if (tip.contains(e.target as Node)) return
+      pressed = true
+      soon()
+    }
+    const up = () => {
+      pressed = false
+      soon()
+    }
+    const doc = view.dom.ownerDocument
+    doc.addEventListener('mousedown', down, true)
+    doc.addEventListener('mouseup', up, true)
+    view.dom.addEventListener('focusin', soon)
+    view.dom.addEventListener('focusout', soon)
+    return {
+      soon,
+      destroy: () => {
+        doc.removeEventListener('mousedown', down, true)
+        doc.removeEventListener('mouseup', up, true)
+        view.dom.removeEventListener('focusin', soon)
+        view.dom.removeEventListener('focusout', soon)
+        tip.remove()
+      },
+    }
+  }
+
   const plugin = new Plugin({
     view: (view) => {
       pm = view
       later()
+      const float = button ? floatButton(view, button) : null
       return {
         // Node views are updated before plugin views, so each CodeMirror
         // already holds the new text when the ranges reach it.
         update: (v, prev) => {
           pm = v
           if (v.state.doc !== prev.doc) sync()
+          float?.soon()
         },
         destroy: () => {
           pm = null
+          float?.destroy()
         },
       }
     },
