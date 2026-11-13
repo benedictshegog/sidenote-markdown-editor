@@ -1,6 +1,6 @@
 # Release notes
 
-## Unreleased
+## 0.1.46 (2026-11-13)
 
 - The window now narrows to 420 points, so Sidenote fits in a third of the screen beside a video call. In a narrow window the sidebar and the versions panel open over the document.
 
