@@ -1447,7 +1447,10 @@ button {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px 18px;
+  width: max-content;
   max-width: min(620px, calc(100vw - 40px));
   padding: 10px 12px 10px 16px;
   border: 1px solid var(--hairline-strong);
@@ -1462,6 +1465,9 @@ button {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  /* Below about 220px the text would wrap a word to a line, so in a narrow
+     window the buttons drop under it instead. */
+  flex: 1 1 220px;
 }
 .update-title {
   font-size: 12px;
@@ -3529,4 +3535,46 @@ html.sidenote-col-resizing * {
 }
 .release-divider + .release {
   border-top: 0;
+}
+
+/* ---- narrow window ------------------------------------------------------ */
+
+/* A third of a laptop screen, beside a video call. The comment margin, the
+   document padding and the side columns all shrink, and the sidebar and the
+   versions panel float over the document instead of taking a column from it,
+   so the text keeps a readable measure. */
+@media (max-width: 760px) {
+  :root {
+    --margin-w: 220px;
+    --panel-w: 280px;
+    --sidebar-w: 220px;
+  }
+  .doc,
+  .empty {
+    padding: 28px 20px 120px;
+  }
+  .app.sidebar-open {
+    grid-template-columns: 0 1fr;
+  }
+  .sidebar-cell {
+    position: relative;
+    z-index: 30;
+    overflow: visible;
+  }
+  .app.sidebar-open .sidebar {
+    background: var(--bg-elev);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  }
+  .docview.panel-open {
+    grid-template-columns: 1fr 0;
+  }
+  .docview.panel-open .panel-cell {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--panel-w);
+    z-index: 30;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  }
 }

@@ -17,7 +17,7 @@
         "title": "Sidenote",
         "width": 1180,
         "height": 820,
-        "minWidth": 720,
+        "minWidth": 420,
         "minHeight": 480,
         "resizable": true,
         "fullscreen": false,

@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- The window now narrows to 420 points, so Sidenote fits in a third of the screen beside a video call. In a narrow window the sidebar and the versions panel open over the document.
+
 ## 0.1.45 (2026-11-11)
 
 - You can now comment on text inside a code block. Select the code and click the Comment button that appears, or press ⇧⌘M.
