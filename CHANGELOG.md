@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- Scrolling works again in a narrow window. In 0.1.46 the page would not scroll when the window was less than 760 points wide.
+
 ## 0.1.46 (2026-11-13)
 
 - The window now narrows to 420 points, so Sidenote fits in a third of the screen beside a video call. In a narrow window the sidebar and the versions panel open over the document.

@@ -3560,6 +3560,10 @@ html.sidenote-col-resizing * {
     position: relative;
     z-index: 30;
     overflow: visible;
+    /* A grid item that is not clipped is as tall as its content by default,
+       and the sidebar's list then stretched the row past the window, so the
+       document could not scroll (0.1.46). */
+    min-height: 0;
   }
   .app.sidebar-open .sidebar {
     background: var(--bg-elev);
