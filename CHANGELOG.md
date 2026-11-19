@@ -1,5 +1,9 @@
 # Release notes
 
+## Unreleased
+
+- The Claude Code skill now gives the right place for the `sidenote` command after a Homebrew install,. It is shorter, and it tells Claude how to edit text inside a table.
+
 ## 0.1.47 (2026-11-13)
 
 - Scrolling works again in a narrow window. In 0.1.46 the page would not scroll when the window was less than 760 points wide.
