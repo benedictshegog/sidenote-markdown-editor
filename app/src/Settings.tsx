@@ -213,8 +213,9 @@ export function Settings({ onClose, onToast, onCheckUpdates, onReleaseNotes }: P
           <div className="pref-label">Claude Code integration</div>
           <p className="pref-help">
             Claude Code reads comments and posts replies through the <code>sidenote</code> command, and follows the
-            <code> sidenote-review</code> skill. Installing links the command into <code>/usr/local/bin</code> (macOS may
-            ask for your password) and writes one file under <code>~/.claude/skills/</code>.
+            <code> sidenote-review</code> skill. Homebrew links the command into <code>/opt/homebrew/bin</code>. Installing from here links it into
+            <code> /usr/local/bin</code> (macOS may ask for your password) and writes one file under
+            <code> ~/.claude/skills/</code>.
           </p>
           <div className="pref-rows">
             <div className="pref-row">
