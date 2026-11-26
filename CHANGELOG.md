@@ -1,8 +1,8 @@
 # Release notes
 
-## Unreleased
+## 0.1.48 (2026-11-26)
 
-- The Claude Code skill now gives the right place for the `sidenote` command after a Homebrew install,. It is shorter, and it tells Claude how to edit text inside a table.
+- The Claude Code skill now gives the right place for the `sidenote` command after a Homebrew install. It is shorter, and it tells Claude how to edit text inside a table.
 
 ## 0.1.47 (2026-11-13)
 
